@@ -234,17 +234,30 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <h1 style={{ 
           fontFamily: 'var(--font-manga)', 
-          fontSize: '72px', 
+          fontSize: '84px', 
           letterSpacing: '3px',
-          textShadow: '0 0 20px rgba(138, 43, 226, 0.7)',
-          background: 'linear-gradient(135deg, #fff 30%, var(--monad-purple) 90%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
+          color: 'var(--fifa-green)',
+          textShadow: '6px 6px 0px #000000',
+          WebkitTextStroke: '2.5px #000000',
+          marginBottom: '15px',
+          lineHeight: 0.95
         }}>
           PROJECT MANGA-MON
         </h1>
-        <p style={{ fontSize: '18px', color: '#8b949e', maxWidth: '600px', margin: '0 auto' }}>
+        <p style={{ 
+          fontSize: '16px', 
+          color: '#000000', 
+          maxWidth: '650px', 
+          margin: '0 auto',
+          backgroundColor: 'var(--fifa-gold)',
+          border: '3px solid #000000',
+          padding: '8px 16px',
+          display: 'inline-block',
+          boxShadow: '4px 4px 0px #000000',
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          letterSpacing: '1px'
+        }}>
           Deconstruct real-world football giants, map their personas via generative AI, and mint them as dynamic NFTs on Monad.
         </p>
       </div>
@@ -277,12 +290,12 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
 
             {web3Connected ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ backgroundColor: '#07090f', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <p style={{ fontSize: '12px', color: '#8b949e' }}>Connected Wallet Address</p>
-                  <p style={{ fontSize: '14px', fontFamily: 'monospace', color: '#fff', wordBreak: 'break-all' }}>{walletAddress}</p>
+                <div style={{ backgroundColor: '#ffffff', color: '#000000', padding: '12px', border: '3px solid #000000', borderRadius: '0px', boxShadow: '4px 4px 0px #000000' }}>
+                  <p style={{ fontSize: '11px', color: '#555555', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Connected Wallet Address</p>
+                  <p style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 'bold', wordBreak: 'break-all' }}>{walletAddress}</p>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '5px' }}>Contract Address (Monad Testnet)</label>
+                  <label style={{ fontSize: '12px', color: '#ffffff', display: 'block', marginBottom: '5px', fontWeight: 'bold', textTransform: 'uppercase' }}>Contract Address (Monad Testnet)</label>
                   <input 
                     type="text" 
                     value={contractAddress}
@@ -290,12 +303,13 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                     style={{ 
                       width: '100%', 
                       padding: '10px', 
-                      backgroundColor: '#07090f', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)', 
-                      borderRadius: '6px',
-                      color: '#fff',
+                      backgroundColor: '#ffffff', 
+                      border: '3px solid #000000', 
+                      borderRadius: '0px',
+                      color: '#000000',
                       fontFamily: 'monospace',
-                      fontSize: '12px'
+                      fontSize: '12px',
+                      fontWeight: 'bold'
                     }}
                   />
                 </div>
@@ -351,11 +365,12 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                 style={{ 
                   flex: 1, 
                   padding: '12px', 
-                  backgroundColor: '#07090f', 
-                  border: '1px solid rgba(255, 255, 255, 0.1)', 
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '14px'
+                  backgroundColor: '#ffffff', 
+                  border: '3px solid #000000', 
+                  borderRadius: '0px',
+                  color: '#000000',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
                 }}
               />
               <button 
@@ -372,18 +387,15 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
             {/* Generated Profile Preview */}
             {generatedProfile && (
               <div style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.02)', 
-                border: `1.5px solid ${getTraitColor(generatedProfile.trait)}`,
-                borderRadius: '12px',
+                backgroundColor: '#ffffff', 
+                color: '#000000',
+                border: `4px solid #000000`,
+                borderRadius: '0px',
                 padding: '20px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '15px',
-                boxShadow: `0 0 15px ${generatedProfile.trait === 'Arrogant' ? 'var(--color-arrogant-glow)' : 
-                             generatedProfile.trait === 'Calculative' ? 'var(--neon-cyan-glow)' : 
-                             generatedProfile.trait === 'Maverick' ? 'var(--color-maverick-glow)' : 
-                             generatedProfile.trait === 'Team-First' ? 'var(--color-team-glow)' : 
-                             'var(--color-panic-glow)'}`
+                boxShadow: `8px 8px 0px ${getTraitColor(generatedProfile.trait)}`
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
@@ -406,25 +418,25 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
 
                 {/* Stats list */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ backgroundColor: '#0f111a', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>SPD</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{generatedProfile.speed}</div>
+                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
+                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>SPD</div>
+                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.speed}</div>
                   </div>
-                  <div style={{ backgroundColor: '#0f111a', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>PAS</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{generatedProfile.passing}</div>
+                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
+                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>PAS</div>
+                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.passing}</div>
                   </div>
-                  <div style={{ backgroundColor: '#0f111a', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>SHT</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{generatedProfile.shooting}</div>
+                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
+                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>SHT</div>
+                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.shooting}</div>
                   </div>
-                  <div style={{ backgroundColor: '#0f111a', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>DEF</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{generatedProfile.defense}</div>
+                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
+                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>DEF</div>
+                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.defense}</div>
                   </div>
-                  <div style={{ backgroundColor: '#0f111a', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e', marginBottom: '4px' }}>STM</div>
-                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{generatedProfile.stamina}</div>
+                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
+                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>STM</div>
+                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.stamina}</div>
                   </div>
                 </div>
 
@@ -514,11 +526,13 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
-                    backgroundColor: '#090b12',
-                    border: '1px solid rgba(255,255,255,0.04)',
-                    borderLeft: `5px solid ${getTraitColor(player.trait)}`,
-                    borderRadius: '8px',
+                    backgroundColor: '#ffffff',
+                    color: '#000000',
+                    border: '3px solid #000000',
+                    borderLeft: `10px solid ${getTraitColor(player.trait)}`,
+                    borderRadius: '0px',
                     padding: '12px 16px',
+                    boxShadow: '4px 4px 0px #000000'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>

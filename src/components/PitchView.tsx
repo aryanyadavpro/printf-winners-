@@ -38,7 +38,30 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
     // Random traits for opponents
     const opponentTraits: PersonaTrait[] = ['Team-First', 'Arrogant', 'Calculative', 'Panic-Prone', 'Maverick'];
-    const blueTeam = initializePlayers([], opponentTraits).filter(p => p.side === 'blue');
+    
+    // Ensure opponent names are unique from our squad names (no duplicates on field)
+    const squadNames = squad.map(p => p.name.replace(/\s*\(Red\)/i, '').replace(/\s*\(Blue\)/i, '').trim().toLowerCase());
+    const reserveNames = ["Rin", "Shidou", "Karasu", "Otoya", "Yukimiya", "Nagi", "Reo", "Barou", "Chigiri", "Bachira"];
+    
+    const blueTeam = initializePlayers([], opponentTraits)
+      .filter(p => p.side === 'blue')
+      .map((p, idx) => {
+        let name = p.name.replace(/\s*\(Blue\)/i, '').trim();
+        let baseName = name.toLowerCase();
+        
+        if (squadNames.includes(baseName)) {
+          // Find first reserve name not in the squad
+          const availableReserve = reserveNames.find(resName => !squadNames.includes(resName.toLowerCase()));
+          if (availableReserve) {
+            name = availableReserve;
+            squadNames.push(name.toLowerCase()); // Add to blacklist
+          }
+        }
+        return {
+          ...p,
+          name: `${name} (Blue)`
+        };
+      });
 
     const initialBall: Ball = {
       x: FIELD_WIDTH / 2,
@@ -169,13 +192,30 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     // Clear Canvas
     ctx.clearRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
-    // 1. Draw Field Boundary Background
-    ctx.fillStyle = '#06080e'; // Sleek dark pitch background
+    // 1. Draw Field Boundary Background (Vibrant Grass Green)
+    ctx.fillStyle = '#107c41'; // FIFA Grass Green
     ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
-    // Draw field borders
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 2;
+    // Draw checkerboard grass pattern
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+    ctx.lineWidth = 1;
+    const gridSize = 45;
+    for (let x = 0; x < FIELD_WIDTH; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, FIELD_HEIGHT);
+      ctx.stroke();
+    }
+    for (let y = 0; y < FIELD_HEIGHT; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(FIELD_WIDTH, y);
+      ctx.stroke();
+    }
+
+    // Draw field borders (Thick White lines)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3.5;
     ctx.strokeRect(PITCH_MARGIN, PITCH_MARGIN, FIELD_WIDTH - PITCH_MARGIN * 2, FIELD_HEIGHT - PITCH_MARGIN * 2);
 
     // Center Line
@@ -190,9 +230,9 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     ctx.stroke();
 
     // Center Spot
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 4, 0, Math.PI * 2);
+    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 6, 0, Math.PI * 2);
     ctx.fill();
 
     // Penalty Boxes
@@ -201,12 +241,15 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     // Right Box
     ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN - 110, FIELD_HEIGHT / 2 - 100, 110, 200);
 
-    // Goals (Draw heavy gates)
-    ctx.lineWidth = 4;
-    // Left Goal (Blue post)
-    ctx.strokeStyle = '#252b45';
+    // Goals (Draw heavy black/white brutalist gates)
+    ctx.lineWidth = 5;
+    // Left Goal
+    ctx.strokeStyle = '#ffffff';
     ctx.strokeRect(PITCH_MARGIN - 15, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
-    // Right Goal (Red post)
+    ctx.strokeStyle = '#000000';
+    ctx.strokeRect(PITCH_MARGIN - 15, GOAL_Y_TOP, 1, GOAL_Y_BOTTOM - GOAL_Y_TOP);
+    // Right Goal
+    ctx.strokeStyle = '#ffffff';
     ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
 
     // 2. Draw Players
@@ -214,22 +257,19 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
       const isRed = player.side === 'red';
       const traitGlow = getTraitColor(player.trait);
 
-      // Trait glowing aura
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = traitGlow;
-
+      // Draw outer brutalist aura circle (offset flat representation)
       ctx.fillStyle = traitGlow;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.arc(player.x, player.y, 17, 0, Math.PI * 2);
+      ctx.arc(player.x + 3, player.y + 3, 17, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
 
-      // Clear shadows for player body
-      ctx.shadowBlur = 0;
-
-      // Base Circle
-      ctx.fillStyle = isRed ? '#230b42' : '#072e42'; // Dark theme team coloring
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      // Main Player Circle
+      ctx.fillStyle = isRed ? 'var(--fifa-red)' : 'var(--fifa-blue)';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
       ctx.fill();
@@ -237,46 +277,42 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
       // Text Initials (Player Name first letter)
       ctx.fillStyle = '#ffffff';
-      ctx.font = '10px Outfit, sans-serif';
+      ctx.font = '900 11px Outfit, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      // Role suffix
       const role = getRoleFromIndex(matchState.players.indexOf(player) % 5);
       ctx.fillText(player.name.substring(0, 2).toUpperCase(), player.x, player.y - 1);
       
       // Mini role tag above player
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = '7px monospace';
-      ctx.fillText(role, player.x, player.y + 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 8px Outfit, sans-serif';
+      ctx.fillText(role, player.x, player.y + 8);
 
       // Draw Stamina Bar underneath player circle
-      ctx.fillStyle = '#333333';
-      ctx.fillRect(player.x - 12, player.y + 19, 24, 3);
-      const staminaWidth = (player.currentStamina / 100) * 24;
-      ctx.fillStyle = player.currentStamina < 25 ? '#ff3b30' : 'var(--neon-cyan)';
-      ctx.fillRect(player.x - 12, player.y + 19, staminaWidth, 3);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(player.x - 12, player.y + 19, 24, 5);
+      const staminaWidth = (player.currentStamina / 100) * 20;
+      ctx.fillStyle = player.currentStamina < 25 ? 'var(--fifa-red)' : 'var(--fifa-green)';
+      ctx.fillRect(player.x - 10, player.y + 20, staminaWidth, 3);
     });
 
     // 3. Draw Ball
     const ball = matchState.ball;
     
-    // Draw ball glow
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = '#ffffff';
-    
+    // Draw ball with black outline
     ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
     ctx.fill();
-    
-    ctx.shadowBlur = 0; // Reset shadow
+    ctx.stroke();
 
     // Small black panels on ball (visual detailing)
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.arc(ball.x, ball.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
 
   }, [matchState]);
 
@@ -369,13 +405,13 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
           {/* Red Team */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ 
-              width: '12px', 
-              height: '12px', 
-              borderRadius: '50%', 
-              backgroundColor: 'var(--monad-purple)',
-              boxShadow: '0 0 10px var(--monad-purple)'
+              width: '16px', 
+              height: '16px', 
+              border: '3px solid #000000', 
+              backgroundColor: 'var(--fifa-red)',
+              boxShadow: '2px 2px 0px #000000'
             }} />
-            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '1px' }}>SQUAD ALPHA (RED)</span>
+            <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-manga)', letterSpacing: '1px' }}>SQUAD ALPHA (RED)</span>
           </div>
 
           {/* Core Score/Clock */}
@@ -390,16 +426,16 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
               gap: '15px'
             }}>
               <span>{matchState.scoreRed}</span>
-              <span style={{ color: '#444c66', fontSize: '32px' }}>-</span>
+              <span style={{ color: '#000000', fontSize: '32px', fontWeight: 'bold' }}>-</span>
               <span>{matchState.scoreBlue}</span>
             </div>
             <div style={{ 
               fontSize: '14px', 
               fontFamily: 'monospace', 
-              color: isGameOver ? '#ff3b30' : 'var(--neon-cyan)',
-              fontWeight: 600,
+              color: isGameOver ? 'var(--fifa-red)' : 'var(--fifa-green)',
+              fontWeight: 800,
               marginTop: '2px',
-              letterSpacing: '1px'
+              letterSpacing: '1.5px'
             }}>
               {isGameOver ? "MATCH END" : `CLOCK: ${formatTime(matchState.timeRemaining)}`}
             </div>
@@ -408,13 +444,13 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
           {/* Blue Team */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexDirection: 'row-reverse' }}>
             <div style={{ 
-              width: '12px', 
-              height: '12px', 
-              borderRadius: '50%', 
-              backgroundColor: 'var(--neon-cyan)',
-              boxShadow: '0 0 10px var(--neon-cyan)'
+              width: '16px', 
+              height: '16px', 
+              border: '3px solid #000000', 
+              backgroundColor: 'var(--fifa-blue)',
+              boxShadow: '2px 2px 0px #000000'
             }} />
-            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '1px' }}>OPPONENTS (BLUE)</span>
+            <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-manga)', letterSpacing: '1px' }}>OPPONENTS (BLUE)</span>
           </div>
         </div>
       )}
