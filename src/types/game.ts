@@ -15,6 +15,7 @@ export interface Player {
   
   // Qualitative Persona Trait
   trait: PersonaTrait;
+  position: string; // e.g. 'ST', 'CAM', 'LW', 'RW', 'CM', 'CB', 'GK'
 
   // Position & Physics Vectors
   x: number;

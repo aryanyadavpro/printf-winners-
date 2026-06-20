@@ -30,6 +30,7 @@ function cardToPlayer(card: DraftCard, side: 'red' | 'blue', x: number, y: numbe
     tokenId: 0,
     name: card.name,
     side,
+    position: (card as any).role ?? 'CM',
     speed: card.speed,
     passing: card.passing,
     shooting: card.shooting,

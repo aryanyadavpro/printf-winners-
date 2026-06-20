@@ -211,11 +211,14 @@ export function runMatchTick(
     return state;
   }
 
-  // 2. Outfield Stamina Degradation
+  // 2. Outfield Stamina Degradation — faster for low-stamina players
   players.forEach(p => {
     const role = getRoleFromIndex(players.indexOf(p) % 5);
     if (role !== 'GK') {
-      p.currentStamina = Math.max(5, p.currentStamina - 0.012); // slow drain
+      // Higher stamina stat = slower drain; wingers/strikers burn more energy
+      const positionBurn = ['ST','LW','RW'].includes(p.position ?? '') ? 1.4 : 1.0;
+      const drainRate = 0.012 * positionBurn * (1 - (p.stamina - 50) / 500);
+      p.currentStamina = Math.max(5, p.currentStamina - drainRate);
     }
   });
 
@@ -326,39 +329,67 @@ export function runMatchTick(
         let shootWeight = 10;
         let dribbleWeight = 60;
 
-        // Apply Trait modifiers
+        // Position-based base weights
+        const pos = player.position ?? '';
+        if (pos === 'ST') {
+          shootWeight = 40; passWeight = 15; dribbleWeight = 45;
+        } else if (pos === 'CAM') {
+          shootWeight = 25; passWeight = 50; dribbleWeight = 25;
+        } else if (pos === 'LW' || pos === 'RW') {
+          shootWeight = 20; passWeight = 25; dribbleWeight = 55;
+        } else if (pos === 'CM') {
+          shootWeight = 20; passWeight = 55; dribbleWeight = 25;
+        } else if (pos === 'CB') {
+          shootWeight = 5;  passWeight = 70; dribbleWeight = 25;
+        }
+
+        // Apply Trait modifiers on top of position weights
         if (player.trait === 'Arrogant') {
-          shootWeight += 40;
-          dribbleWeight += 30;
-          passWeight -= 70;
+          // Ronaldo/Haaland: always want the glory shot, never pass
+          shootWeight += 45;
+          dribbleWeight += 20;
+          passWeight -= 65;
+          // Extra: shoot even from long range if stamina is high
+          if (player.currentStamina > 60 && goalDist < 400) shootWeight += 15;
         } else if (player.trait === 'Calculative') {
-          // Dynamic calculation: shoot if high probability, else pass
+          // Messi/De Bruyne/Van Dijk: wait for perfect opportunity
           if (goalProb > 0.65) {
-            shootWeight = 80;
-            dribbleWeight = 10;
-            passWeight = 10;
+            shootWeight = 75; dribbleWeight = 15; passWeight = 10;
+          } else if (goalProb > 0.45) {
+            shootWeight = 35; passWeight = 45; dribbleWeight = 20;
           } else {
-            passWeight = 70;
-            dribbleWeight = 20;
-            shootWeight = 10;
+            passWeight = 75; dribbleWeight = 20; shootWeight = 5;
           }
         } else if (player.trait === 'Panic-Prone') {
-          if (nearestOpponentDist < 45 || player.currentStamina < 20) {
-            // Panic: Pass randomly or backwards
-            passWeight = 90;
-            dribbleWeight = 5;
-            shootWeight = 5;
+          // Ramos: solid under no pressure, but panics when closed down
+          if (nearestOpponentDist < 40) {
+            // Under pressure: random clearance or panicky pass
+            passWeight = 80; dribbleWeight = 5; shootWeight = 15;
+            // Occasionally shoots wildly
+            if (Math.random() < 0.2) { shootWeight = 60; passWeight = 35; }
+          } else if (player.currentStamina < 30) {
+            passWeight = 85; dribbleWeight = 10; shootWeight = 5;
           }
         } else if (player.trait === 'Maverick') {
-          // Maverick likes risky shooting and crazy dribbles
-          shootWeight += 25;
-          dribbleWeight += 20;
-          passWeight -= 45;
-          if (goalDist < 300) shootWeight += 20; // shoot from anywhere
+          // Neymar/Mbappe: unpredictable, speed dribbles, shoot from anywhere
+          shootWeight += 20;
+          dribbleWeight += 30;
+          passWeight -= 50;
+          // Mbappe speciality: burst dribble towards goal
+          if (pos === 'RW' || pos === 'LW') {
+            dribbleWeight += 15;
+            // If speed is very high (>90), add extra burst boost
+            if (player.speed > 90 && goalDist < 350) shootWeight += 25;
+          }
         } else if (player.trait === 'Team-First') {
-          passWeight += 45;
-          shootWeight -= 10;
+          // Modric/Bellingham: always look for the best pass option first
+          passWeight += 50;
+          shootWeight -= 15;
           dribbleWeight -= 35;
+          // Bellingham (CM): box-to-box, more willing to shoot than Modric
+          if (pos === 'CM' && goalProb > 0.55) {
+            shootWeight += 20; passWeight -= 20;
+          }
         }
 
         // Clamp weights

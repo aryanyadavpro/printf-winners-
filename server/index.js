@@ -59,18 +59,18 @@ function getEscrowContract() {
   return new ethers.Contract(process.env.ESCROW_ADDRESS, ESCROW_ABI, signer);
 }
 
-// ── Card pool ─────────────────────────────────────────────────────────────────
+// ── Card pool — stats sourced from match data reference ───────────────────────
 const CARD_POOL = [
-  { id: 'c1',  name: 'Cristiano Ronaldo', image: '/images/ronaldo.jpg', role: 'Striker',      tier: 'Epic',   cost: 4, speed: 87, passing: 78, shooting: 93, defense: 35, stamina: 82, trait: 'Arrogant'    },
-  { id: 'c2',  name: 'Lionel Messi',      image: '/images/messi.jpg',   role: 'Playmaker',    tier: 'Epic',   cost: 4, speed: 85, passing: 95, shooting: 87, defense: 38, stamina: 80, trait: 'Calculative'  },
-  { id: 'c3',  name: 'Erling Haaland',   image: '/images/erling.jpg',  role: 'Striker',      tier: 'Rare',   cost: 3, speed: 88, passing: 60, shooting: 95, defense: 28, stamina: 85, trait: 'Arrogant'    },
-  { id: 'c4',  name: 'Kylian Mbappé',    image: '/images/mbappe.jpg',  role: 'Winger',       tier: 'Rare',   cost: 3, speed: 97, passing: 72, shooting: 82, defense: 36, stamina: 88, trait: 'Maverick'    },
-  { id: 'c5',  name: 'Kevin De Bruyne',  image: '/images/kevin.jpg',   role: 'Midfielder',   tier: 'Rare',   cost: 3, speed: 74, passing: 95, shooting: 78, defense: 58, stamina: 78, trait: 'Calculative'  },
-  { id: 'c6',  name: 'Neymar Jr',        image: '/images/neymar.jpg',  role: 'Winger',       tier: 'Common', cost: 2, speed: 88, passing: 80, shooting: 78, defense: 30, stamina: 72, trait: 'Maverick'    },
-  { id: 'c7',  name: 'Luka Modrić',      image: '/images/luka.jpg',    role: 'Midfielder',   tier: 'Common', cost: 2, speed: 68, passing: 88, shooting: 70, defense: 72, stamina: 80, trait: 'Team-First'  },
-  { id: 'c8',  name: 'Jude Bellingham',  image: '/images/jude.jpg',    role: 'Box-to-Box',   tier: 'Common', cost: 2, speed: 75, passing: 80, shooting: 75, defense: 70, stamina: 85, trait: 'Team-First'  },
-  { id: 'c9',  name: 'Virgil van Dijk',  image: '/images/van.jpg',     role: 'Center-Back',  tier: 'Common', cost: 1, speed: 70, passing: 72, shooting: 45, defense: 95, stamina: 82, trait: 'Team-First'  },
-  { id: 'c10', name: 'Sergio Ramos',     image: '/images/sergio.jpg',  role: 'Center-Back',  tier: 'Common', cost: 1, speed: 65, passing: 68, shooting: 40, defense: 88, stamina: 75, trait: 'Arrogant'    },
+  { id: 'c1',  name: 'Cristiano Ronaldo', image: '/images/ronaldo.jpg', role: 'ST',  tier: 'Epic',   cost: 4, speed: 88, passing: 75, shooting: 95, defense: 35, stamina: 90, trait: 'Arrogant'    },
+  { id: 'c2',  name: 'Lionel Messi',      image: '/images/messi.jpg',   role: 'CAM', tier: 'Epic',   cost: 4, speed: 82, passing: 96, shooting: 92, defense: 40, stamina: 80, trait: 'Calculative'  },
+  { id: 'c3',  name: 'Erling Haaland',   image: '/images/erling.jpg',  role: 'ST',  tier: 'Rare',   cost: 3, speed: 89, passing: 65, shooting: 94, defense: 38, stamina: 87, trait: 'Arrogant'    },
+  { id: 'c4',  name: 'Kylian Mbappé',    image: '/images/mbappe.jpg',  role: 'RW',  tier: 'Rare',   cost: 3, speed: 97, passing: 80, shooting: 89, defense: 32, stamina: 86, trait: 'Maverick'    },
+  { id: 'c5',  name: 'Kevin De Bruyne',  image: '/images/kevin.jpg',   role: 'CM',  tier: 'Rare',   cost: 3, speed: 76, passing: 95, shooting: 86, defense: 62, stamina: 84, trait: 'Calculative'  },
+  { id: 'c6',  name: 'Neymar Jr',        image: '/images/neymar.jpg',  role: 'LW',  tier: 'Common', cost: 2, speed: 87, passing: 86, shooting: 85, defense: 30, stamina: 78, trait: 'Maverick'    },
+  { id: 'c7',  name: 'Luka Modrić',      image: '/images/luka.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 74, passing: 91, shooting: 78, defense: 70, stamina: 85, trait: 'Team-First'  },
+  { id: 'c8',  name: 'Jude Bellingham',  image: '/images/jude.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 80, passing: 85, shooting: 84, defense: 78, stamina: 92, trait: 'Team-First'  },
+  { id: 'c9',  name: 'Virgil van Dijk',  image: '/images/van.jpg',     role: 'CB',  tier: 'Common', cost: 1, speed: 78, passing: 80, shooting: 60, defense: 94, stamina: 88, trait: 'Calculative'  },
+  { id: 'c10', name: 'Sergio Ramos',     image: '/images/sergio.jpg',  role: 'CB',  tier: 'Common', cost: 1, speed: 72, passing: 75, shooting: 68, defense: 88, stamina: 70, trait: 'Panic-Prone'  },
 ];
 
 // ── In-memory match rooms ─────────────────────────────────────────────────────
