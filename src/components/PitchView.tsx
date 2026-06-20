@@ -2,68 +2,48 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { Player, Ball, MatchState, MangaEvent, PersonaTrait } from '../types/game';
-import { initializePlayers, runMatchTick, resetToKickoff, getRoleFromIndex } from '../utils/matchEngine';
+import { runMatchTick, resetToKickoff } from '../utils/matchEngine';
 import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } from '../utils/physics';
 import { updatePlayerStatsOnChain } from '../utils/web3';
-import { Play, Pause, RotateCcw, FastForward, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 import MangaOverlay from './MangaOverlay';
 
 interface PitchViewProps {
   squad: Player[];
+  myAddress?: string;
+  opponentAddress?: string;
   onBackToDashboard: () => void;
 }
 
-export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) {
+export default function PitchView({ squad, myAddress, opponentAddress, onBackToDashboard }: PitchViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mangaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMangaEventTimeRef = useRef<number>(0);
 
   // Simulation State
   const [matchState, setMatchState] = useState<MatchState | null>(null);
-  const [simSpeed, setSimSpeed] = useState<number>(1); // 1x, 2x, 4x
+  const [countdown, setCountdown] = useState<number | null>(3);
   const [matchLog, setMatchLog] = useState<string[]>([]);
   const [mangaEvent, setMangaEvent] = useState<MangaEvent | null>(null);
   const [generatedDialogue, setGeneratedDialogue] = useState<string>('');
   const [isDialogueLoading, setIsDialogueLoading] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncCompleted, setSyncCompleted] = useState<boolean>(false);
-  const [syncHash, setSyncHash] = useState<string>('');
 
-  // Initialize match state once on load
+  const initializedRef = useRef(false);
+
+  const SLOT_ROLES = ['GK', 'LB', 'RB', 'CDM', 'ST'];
+
+  // Initialize match state once — use the actual drafted players from both sides
   useEffect(() => {
-    // 5 players from squad (Red) vs 5 generated AI opponents (Blue)
-    const redTeam = squad.map((p, idx) => ({
-      ...p,
-      side: 'red' as const,
-      x: 0, y: 0, vx: 0, vy: 0 // Reset physics vectors
-    }));
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-    // Random traits for opponents
-    const opponentTraits: PersonaTrait[] = ['Team-First', 'Arrogant', 'Calculative', 'Panic-Prone', 'Maverick'];
-    
-    // Ensure opponent names are unique from our squad names (no duplicates on field)
-    const squadNames = squad.map(p => p.name.replace(/\s*\(Red\)/i, '').replace(/\s*\(Blue\)/i, '').trim().toLowerCase());
-    const reserveNames = ["Rin", "Shidou", "Karasu", "Otoya", "Yukimiya", "Nagi", "Reo", "Barou", "Chigiri", "Bachira"];
-    
-    const blueTeam = initializePlayers([], opponentTraits)
+    // squad already has side:'red' (my players) and side:'blue' (opponent's players)
+    const redTeam = squad
+      .filter(p => p.side === 'red')
+      .map(p => ({ ...p, x: 0, y: 0, vx: 0, vy: 0 }));
+
+    const blueTeam = squad
       .filter(p => p.side === 'blue')
-      .map((p, idx) => {
-        let name = p.name.replace(/\s*\(Blue\)/i, '').trim();
-        let baseName = name.toLowerCase();
-        
-        if (squadNames.includes(baseName)) {
-          // Find first reserve name not in the squad
-          const availableReserve = reserveNames.find(resName => !squadNames.includes(resName.toLowerCase()));
-          if (availableReserve) {
-            name = availableReserve;
-            squadNames.push(name.toLowerCase()); // Add to blacklist
-          }
-        }
-        return {
-          ...p,
-          name: `${name} (Blue)`
-        };
-      });
+      .map(p => ({ ...p, x: 0, y: 0, vx: 0, vy: 0 }));
 
     const initialBall: Ball = {
       x: FIELD_WIDTH / 2,
@@ -90,8 +70,21 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
     resetToKickoff(initialState.players, initialState.ball);
     setMatchState(initialState);
-    setMatchLog(["Match ready. Tactical kickoff scheduled."]);
+    setMatchLog(["Match ready. Kickoff in 3…"]);
+    setCountdown(3);
   }, [squad]);
+
+  // 3-2-1 auto-start countdown
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      setMatchState(prev => prev ? { ...prev, isPlaying: true } : null);
+      setCountdown(null);
+      return;
+    }
+    const t = setTimeout(() => setCountdown(prev => (prev ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
 
   // Main Simulation Loop
   useEffect(() => {
@@ -106,10 +99,7 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
         // Run ticks according to simulation speed setting (1x, 2x, etc.)
         let tempState = { ...prevState };
         
-        // Execute multiple physics calculations per frame for speed up
-        for (let s = 0; s < simSpeed; s++) {
-          tempState = runMatchTick(tempState, handleMangaEventTrigger);
-        }
+        tempState = runMatchTick(tempState, handleMangaEventTrigger);
 
         return tempState;
       });
@@ -122,7 +112,7 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     return () => {
       cancelAnimationFrame(animFrameId);
     };
-  }, [matchState?.isPlaying, simSpeed]);
+  }, [matchState?.isPlaying]);
 
   useEffect(() => {
     return () => {
@@ -277,47 +267,71 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
 
     // 2. Draw Players
+    const redPlayers  = matchState.players.filter(p => p.side === 'red');
+    const bluePlayers = matchState.players.filter(p => p.side === 'blue');
+
     matchState.players.forEach(player => {
-      const isRed = player.side === 'red';
-      const traitGlow = getTraitColor(player.trait);
+      const isRed      = player.side === 'red';
+      const teamList   = isRed ? redPlayers : bluePlayers;
+      const teamIdx    = teamList.indexOf(player);
+      const role       = SLOT_ROLES[teamIdx] ?? '?';
+      const circleColor = isRed ? '#E8001D' : '#0033A0';
+      const shadowColor = isRed ? '#8B0000' : '#001A5E';
 
-      // Draw outer brutalist aura circle (offset flat representation)
-      ctx.fillStyle = traitGlow;
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3.5;
+      // Drop shadow
+      ctx.fillStyle = shadowColor;
       ctx.beginPath();
-      ctx.arc(player.x + 3, player.y + 3, 17, 0, Math.PI * 2);
+      ctx.arc(player.x + 2, player.y + 2, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Main circle
+      ctx.fillStyle = circleColor;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 18, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Main Player Circle
-      ctx.fillStyle = isRed ? 'var(--fifa-red)' : 'var(--fifa-blue)';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      // Ball possession indicator
+      if (player.hasBall) {
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 22, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
-      // Text Initials (Player Name first letter)
+      // Player name (first word, up to 4 chars)
+      const shortName = player.name.split(' ')[0].substring(0, 4).toUpperCase();
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 11px Outfit, sans-serif';
+      ctx.font = 'bold 10px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const role = getRoleFromIndex(matchState.players.indexOf(player) % 5);
-      ctx.fillText(player.name.substring(0, 2).toUpperCase(), player.x, player.y - 1);
-      
-      // Mini role tag above player
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 8px Outfit, sans-serif';
-      ctx.fillText(role, player.x, player.y + 8);
+      ctx.fillText(shortName, player.x, player.y - 3);
 
-      // Draw Stamina Bar underneath player circle
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(player.x - 12, player.y + 19, 24, 5);
-      const staminaWidth = (player.currentStamina / 100) * 20;
-      ctx.fillStyle = player.currentStamina < 25 ? 'var(--fifa-red)' : 'var(--fifa-green)';
-      ctx.fillRect(player.x - 10, player.y + 20, staminaWidth, 3);
+      // Role label
+      ctx.font = 'bold 8px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText(role, player.x, player.y + 7);
+
+      // Name tag below circle
+      ctx.fillStyle = isRed ? '#E8001D' : '#0033A0';
+      ctx.fillRect(player.x - 20, player.y + 22, 40, 13);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(player.x - 20, player.y + 22, 40, 13);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px Arial, sans-serif';
+      ctx.fillText(player.name.split(' ').map((w: string) => w[0]).join('').substring(0, 4), player.x, player.y + 29);
+
+      // Stamina bar
+      const barW = 36;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(player.x - barW / 2, player.y + 38, barW, 4);
+      const staminaColor = player.currentStamina < 25 ? '#ff3b30' : player.currentStamina < 60 ? '#ffaa00' : '#34c759';
+      ctx.fillStyle = staminaColor;
+      ctx.fillRect(player.x - barW / 2, player.y + 38, (player.currentStamina / 100) * barW, 4);
     });
 
     // 3. Draw Ball
@@ -352,59 +366,6 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     }
   };
 
-  const handlePlayPause = () => {
-    setMatchState(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        isPlaying: !prev.isPlaying
-      };
-    });
-  };
-
-  const handleResetMatch = () => {
-    setMatchState(prev => {
-      if (!prev) return null;
-      const cleanState = { ...prev };
-      resetToKickoff(cleanState.players, cleanState.ball);
-      cleanState.timeRemaining = 180;
-      cleanState.scoreRed = 0;
-      cleanState.scoreBlue = 0;
-      cleanState.isPlaying = false;
-      cleanState.isMangaPaused = false;
-      cleanState.currentMangaEvent = null;
-      return cleanState;
-    });
-    setMangaEvent(null);
-    setSyncCompleted(false);
-    setSyncHash('');
-    setMatchLog(["Match reset. Kickoff positions re-locked."]);
-  };
-
-  const handleSyncStats = async () => {
-    if (!matchState) return;
-    setIsSyncing(true);
-
-    try {
-      // Find our team (Red side)
-      const ourTeam = matchState.players.filter(p => p.side === 'red');
-      
-      // Simulate blockchain execution or make real MetaMask call if address exists
-      const mockHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      
-      // Wait for parallel simulation to execute in 600ms
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      setSyncHash(mockHash);
-      setSyncCompleted(true);
-      setMatchLog(prev => ["Sync complete! On-chain stats updated successfully.", ...prev]);
-    } catch (e) {
-      alert("Failed syncing stats.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Format Clock display
   const formatTime = (timeInSeconds: number) => {
     const mins = Math.floor(timeInSeconds / 60);
@@ -419,62 +380,53 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
       
       {/* Scoreboard Panel */}
       {matchState && (
-        <div className="glass-panel" style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          padding: '15px 30px'
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center', gap: '0',
+          border: '4px solid #000', boxShadow: '6px 6px 0 #000', marginBottom: '20px',
         }}>
-          {/* Red Team */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ 
-              width: '16px', 
-              height: '16px', 
-              border: '3px solid #000000', 
-              backgroundColor: 'var(--fifa-red)',
-              boxShadow: '2px 2px 0px #000000'
-            }} />
-            <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-manga)', letterSpacing: '1px' }}>SQUAD ALPHA (RED)</span>
-          </div>
-
-          {/* Core Score/Clock */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              fontSize: '44px', 
-              fontFamily: 'var(--font-manga)', 
-              letterSpacing: '3px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '15px'
-            }}>
-              <span>{matchState.scoreRed}</span>
-              <span style={{ color: '#000000', fontSize: '32px', fontWeight: 'bold' }}>-</span>
-              <span>{matchState.scoreBlue}</span>
+          {/* Red Team — YOU */}
+          <div style={{
+            background: '#E8001D', padding: '14px 20px',
+            borderRight: '4px solid #000', display: 'flex', flexDirection: 'column', gap: '2px',
+          }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '3px', color: 'rgba(255,255,255,0.7)' }}>
+              YOU ▸ RED TEAM
             </div>
-            <div style={{ 
-              fontSize: '14px', 
-              fontFamily: 'monospace', 
-              color: isGameOver ? 'var(--fifa-red)' : 'var(--fifa-green)',
-              fontWeight: 800,
-              marginTop: '2px',
-              letterSpacing: '1.5px'
-            }}>
-              {isGameOver ? "MATCH END" : `CLOCK: ${formatTime(matchState.timeRemaining)}`}
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', color: '#fff', letterSpacing: '1px' }}>
+              {myAddress ? `${myAddress.slice(0, 6)}…${myAddress.slice(-4)}` : 'Player 1'}
             </div>
           </div>
 
-          {/* Blue Team */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexDirection: 'row-reverse' }}>
-            <div style={{ 
-              width: '16px', 
-              height: '16px', 
-              border: '3px solid #000000', 
-              backgroundColor: 'var(--fifa-blue)',
-              boxShadow: '2px 2px 0px #000000'
-            }} />
-            <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'var(--font-manga)', letterSpacing: '1px' }}>OPPONENTS (BLUE)</span>
+          {/* Score + Clock */}
+          <div style={{ background: '#fff', padding: '10px 28px', textAlign: 'center', borderRight: '4px solid #000' }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: '48px', letterSpacing: '6px', lineHeight: 1,
+              display: 'flex', alignItems: 'center', gap: '10px', color: '#000',
+            }}>
+              <span style={{ color: '#E8001D' }}>{matchState.scoreRed}</span>
+              <span style={{ fontSize: '28px' }}>–</span>
+              <span style={{ color: '#0033A0' }}>{matchState.scoreBlue}</span>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '2px',
+              color: isGameOver ? '#E8001D' : '#00a651', marginTop: '4px',
+            }}>
+              {isGameOver ? '● MATCH END' : `⏱ ${formatTime(matchState.timeRemaining)}`}
+            </div>
+          </div>
+
+          {/* Blue Team — OPPONENT */}
+          <div style={{
+            background: '#0033A0', padding: '14px 20px',
+            display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end',
+          }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '3px', color: 'rgba(255,255,255,0.7)' }}>
+              OPPONENT ▸ BLUE TEAM
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', color: '#fff', letterSpacing: '1px' }}>
+              {opponentAddress ? `${opponentAddress.slice(0, 6)}…${opponentAddress.slice(-4)}` : 'Player 2'}
+            </div>
           </div>
         </div>
       )}
@@ -539,107 +491,46 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
         {/* Manga breakout overlay injection */}
         {mangaEvent && (
-          <MangaOverlay 
+          <MangaOverlay
             event={mangaEvent}
             dialogue={generatedDialogue}
             isLoading={isDialogueLoading}
             onClose={handleCloseManga}
           />
         )}
+
+        {/* 3-2-1 Countdown overlay */}
+        {countdown !== null && countdown > 0 && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 100,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-manga)',
+              fontSize: '160px',
+              color: '#fff',
+              lineHeight: 1,
+              textShadow: '6px 6px 0 #000, -2px -2px 0 #000',
+              animation: 'countdownPop 0.9s ease-out',
+            }}>
+              {countdown}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-manga)',
+              fontSize: '20px',
+              letterSpacing: '6px',
+              color: 'var(--fifa-gold-light)',
+              textShadow: '2px 2px 0 #000',
+              marginTop: '12px',
+            }}>
+              GET READY
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Game Loop Controls */}
-      {matchState && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1.2fr 1fr 1fr', 
-          gap: '20px', 
-          marginTop: '25px' 
-        }}>
-          {/* Left panel: buttons */}
-          <div className="glass-panel" style={{ display: 'flex', gap: '10px', padding: '15px', alignItems: 'center' }}>
-            {!isGameOver ? (
-              <button 
-                onClick={handlePlayPause} 
-                className="btn-primary" 
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                {matchState.isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                {matchState.isPlaying ? "PAUSE" : "START SIM"}
-              </button>
-            ) : (
-              <button 
-                onClick={handleSyncStats}
-                disabled={isSyncing || syncCompleted}
-                className="btn-primary"
-                style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg, #00ffff 0%, #1e90ff 100%)', boxShadow: '0 4px 15px rgba(0,255,255,0.3)' }}
-              >
-                {isSyncing ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {syncCompleted ? "SYNCED TO MONAD" : "SYNC POST-MATCH"}
-              </button>
-            )}
-
-            <button 
-              onClick={handleResetMatch} 
-              className="btn-secondary"
-              style={{ padding: '12px' }}
-              title="Reset pitch positions"
-            >
-              <RotateCcw size={16} />
-            </button>
-          </div>
-
-          {/* Speed settings */}
-          <div className="glass-panel" style={{ display: 'flex', gap: '8px', padding: '15px', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#000000', fontWeight: 800, marginRight: '5px' }}>SPEED:</span>
-            {[1, 2, 4].map(speed => (
-              <button
-                key={speed}
-                onClick={() => setSimSpeed(speed)}
-                className={simSpeed === speed ? "btn-primary" : "btn-secondary"}
-                style={{ padding: '6px 12px', fontSize: '12px', flex: 1 }}
-              >
-                {speed}x
-              </button>
-            ))}
-          </div>
-
-          {/* Navigation */}
-          <div className="glass-panel" style={{ display: 'flex', padding: '15px', alignItems: 'center', justifyContent: 'center' }}>
-            <button 
-              onClick={onBackToDashboard} 
-              className="btn-secondary"
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              LEAVE PITCH
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Sync complete logs */}
-      {syncCompleted && (
-        <div className="glass-panel" style={{ 
-          marginTop: '20px', 
-          borderColor: '#000000', 
-          background: '#ffffff',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          fontSize: '13px',
-          color: '#000000'
-        }}>
-          <p style={{ color: 'var(--fifa-green-text)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={16} /> Post-Match Blockchain Update Successful!
-          </p>
-          <p style={{ color: '#222222' }}>
-            Depleted stamina logs and goals/assists values have been calculated, batched, and compiled into a single parallel transaction to optimize Gas overhead on Monad.
-          </p>
-          <p style={{ fontFamily: 'monospace', color: '#555555', fontSize: '11px', wordBreak: 'break-all', fontWeight: 'bold' }}>
-            Transaction Hash: {syncHash}
-          </p>
-        </div>
-      )}
 
       {/* Live Commentary logs */}
       <div className="glass-panel" style={{ marginTop: '20px' }}>
@@ -669,23 +560,3 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
   );
 }
 
-// React loader spinner
-function Loader2({ className, ...props }: any) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`animate-spin ${className}`}
-      {...props}
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}

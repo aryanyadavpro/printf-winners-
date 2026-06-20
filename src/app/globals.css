@@ -286,6 +286,13 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes countdownPop {
+  0%   { transform: scale(1.8); opacity: 0; }
+  30%  { transform: scale(1.0); opacity: 1; }
+  80%  { transform: scale(1.0); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+
 .screen-shake { animation: shake 0.35s ease-in-out infinite; }
 @keyframes shake {
   0%, 100% { transform: translate(0,0) rotate(0deg); }

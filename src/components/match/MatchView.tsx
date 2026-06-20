@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { BrowserProvider, parseEther, ethers } from 'ethers';
 import { DraftCard, Formation, MatchResult, MatchStage } from '../../types/match';
@@ -51,7 +51,6 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
   const [cardPool, setCardPool] = useState<DraftCard[]>([]);
   const [mySquad, setMySquad] = useState<DraftCard[]>([]);
   const [myPoints, setMyPoints] = useState(10);
-  const [lockedCardIds, setLockedCardIds] = useState<Set<string>>(new Set());
   const [myFormation, setMyFormation] = useState<Formation>({});
   const [formationSubmitted, setFormationSubmitted] = useState(false);
   const [timer, setTimer] = useState(60);
@@ -128,18 +127,19 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
       setTimer(remaining);
     });
 
-    socket.on('pick_confirmed', ({ card, remainingPoints, squadSize }: any) => {
+    socket.on('pick_confirmed', ({ card, remainingPoints }: any) => {
       setMySquad(prev => [...prev, card]);
       setMyPoints(remainingPoints);
-      setLockedCardIds(prev => new Set([...prev, card.id]));
+    });
+
+    socket.on('unpick_confirmed', ({ cardId, remainingPoints }: any) => {
+      // Sync points authoritatively from server (squad already updated optimistically)
+      setMySquad(prev => prev.filter(c => c.id !== cardId));
+      setMyPoints(remainingPoints);
     });
 
     socket.on('pick_rejected', ({ reason }: { cardId: string; reason: string }) => {
       setStatusMsg(`Pick rejected: ${reason.replace(/_/g, ' ')}`);
-    });
-
-    socket.on('card_locked', ({ cardId }: { cardId: string }) => {
-      setLockedCardIds(prev => new Set([...prev, cardId]));
     });
 
     socket.on('formation_confirmed', () => setFormationSubmitted(true));
@@ -223,18 +223,14 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
   }, [matchId]);
 
   const handleUnpickCard = useCallback((cardId: string) => {
-    socketRef.current?.emit('unpick_card', { matchId, cardId });
-    // Optimistic local update — server will confirm via pick_confirmed events
-    setMySquad(prev => prev.filter(c => c.id !== cardId));
-    setLockedCardIds(prev => {
-      const next = new Set(prev);
-      next.delete(cardId);
-      return next;
+    setMySquad(prev => {
+      const card = prev.find(c => c.id === cardId);
+      if (card) setMyPoints(pts => pts + card.cost);
+      return prev.filter(c => c.id !== cardId);
     });
-    // Recalculate points based on removed card's cost
-    const removed = mySquad.find(c => c.id === cardId);
-    if (removed) setMyPoints(prev => prev + removed.cost);
-  }, [matchId, mySquad]);
+    socketRef.current?.emit('unpick_card', { matchId, cardId });
+  }, [matchId]);
+
 
   const handleSubmitFormation = useCallback((formation: Formation) => {
     setMyFormation(formation);
@@ -248,7 +244,6 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     setCardPool([]);
     setMySquad([]);
     setMyPoints(10);
-    setLockedCardIds(new Set());
     setMyFormation({});
     setFormationSubmitted(false);
     setResult(null);
@@ -256,6 +251,12 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     setQueuePosition(null);
     setStatusMsg('');
   }, []);
+
+  // Stable reference — only recomputed when matchSquads changes, not on every timer tick
+  const combinedSquad = useMemo(
+    () => matchSquads ? [...matchSquads.red, ...matchSquads.blue] : [],
+    [matchSquads]
+  );
 
   return (
     <div>
@@ -287,7 +288,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
           cardPool={cardPool}
           mySquad={mySquad}
           myPoints={myPoints}
-          lockedCardIds={lockedCardIds}
+          lockedCardIds={new Set()}
           timer={timer}
           opponentAddress={opponentAddress}
           onPickCard={handlePickCard}
@@ -306,7 +307,9 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
 
       {stage === 3 && matchSquads && (
         <PitchView
-          squad={[...matchSquads.red, ...matchSquads.blue]}
+          squad={combinedSquad}
+          myAddress={walletAddress}
+          opponentAddress={opponentAddress}
           onBackToDashboard={handlePlayAgain}
         />
       )}
