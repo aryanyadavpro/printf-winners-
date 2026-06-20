@@ -2,22 +2,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { Player, PersonaTrait } from '../types/game';
-import { 
-  isMetaMaskAvailable, 
-  connectMetaMask, 
-  mintPlayerNFT, 
-  getMockPlayers, 
-  saveMockPlayer, 
-  clearMockPlayers 
+import {
+  isMetaMaskAvailable,
+  connectMetaMask,
+  mintPlayerNFT,
+  getMockPlayers,
+  saveMockPlayer,
+  clearMockPlayers,
+  checkNameTaken,
 } from '../utils/web3';
-import { Wallet, ShieldAlert, Cpu, Sparkles, Plus, Trash2, Trophy, Loader2 } from 'lucide-react';
+import { Wallet, ShieldAlert, Cpu, Sparkles, Plus, Trash2, Trophy, Loader2, Tag } from 'lucide-react';
 import { BrowserProvider } from 'ethers';
 
 interface DashboardProps {
   onStartMatch: (squad: Player[]) => void;
+  onGoToShop?: () => void;
 }
 
-export default function Dashboard({ onStartMatch }: DashboardProps) {
+export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) {
   // Wallet state
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [contractAddress, setContractAddress] = useState<string>('0x9aE7A8A31D0cf6c429c629532822a1017c603b55'); // Example address
@@ -56,6 +58,15 @@ export default function Dashboard({ onStartMatch }: DashboardProps) {
     setGeneratedProfile(null);
     setTxLog(null);
     try {
+      // Check on-chain uniqueness before spending an LLM call
+      if (web3Connected && provider) {
+        const { taken, tokenId } = await checkNameTaken(provider, contractAddress, searchName.trim());
+        if (taken) {
+          alert(`"${searchName.trim()}" is already a 1-of-1 agent on chain (Token #${tokenId}). Only one can ever exist — find them in the Agent Shop.`);
+          setIsGenerating(false);
+          return;
+        }
+      }
       const res = await fetch(`/api/players?name=${encodeURIComponent(searchName.trim())}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -540,6 +551,17 @@ export default function Dashboard({ onStartMatch }: DashboardProps) {
                     <span style={{ fontSize: '11px', color: '#5d637f' }}>
                       Token #{player.tokenId ? player.tokenId.toString().slice(-4) : 'MOCK'}
                     </span>
+
+                    {onGoToShop && (
+                      <button
+                        onClick={onGoToShop}
+                        title="List this agent for sale in the Shop"
+                        className="btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Tag size={11} /> Sell
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

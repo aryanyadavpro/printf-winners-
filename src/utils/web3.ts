@@ -9,8 +9,30 @@ export const CONTRACT_ABI = [
   "function balanceOf(address owner) external view returns (uint256)",
   "function ownerOf(uint256 tokenId) public view returns (address)",
   "function totalSupply() external view returns (uint256)",
-  "function tokenURI(uint256 tokenId) public view returns (string)"
+  "function tokenURI(uint256 tokenId) public view returns (string)",
+  "function isNameTaken(string playerName) external view returns (bool)",
+  "function tokenIdOfName(string playerName) external view returns (uint256)"
 ];
+
+// Check if a player name has already been minted as a 1-of-1 on chain.
+export async function checkNameTaken(
+  provider: BrowserProvider,
+  contractAddress: string,
+  playerName: string
+): Promise<{ taken: boolean; tokenId?: number }> {
+  try {
+    const contract = new Contract(contractAddress, CONTRACT_ABI, provider);
+    const taken: boolean = await contract.isNameTaken(playerName);
+    if (taken) {
+      const tid: bigint = await contract.tokenIdOfName(playerName);
+      return { taken: true, tokenId: Number(tid) };
+    }
+    return { taken: false };
+  } catch {
+    // If contract isn't deployed (sandbox), treat as not taken
+    return { taken: false };
+  }
+}
 
 // Helper to check if metamask is injected
 export function isMetaMaskAvailable(): boolean {
@@ -101,6 +123,97 @@ export async function updatePlayerStatsOnChain(
   const receipt = await tx.wait();
   return receipt.hash;
 }
+
+// ─── Marketplace ABI & Helpers ────────────────────────────────────────────────
+
+export const MARKETPLACE_ABI = [
+  "function listAgent(uint256 tokenId, uint256 price) external",
+  "function buyAgent(uint256 tokenId) external payable",
+  "function delistAgent(uint256 tokenId) external",
+  "function getActiveListings() external view returns (uint256[] tokenIds, address[] sellers, uint256[] prices)",
+  "function listings(uint256 tokenId) external view returns (address seller, uint256 price, bool active)",
+  "event Listed(uint256 indexed tokenId, address indexed seller, uint256 price)",
+  "event Sold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price)",
+  "event Delisted(uint256 indexed tokenId, address indexed seller)"
+];
+
+export interface MarketplaceListing {
+  tokenId: number;
+  seller: string;
+  price: bigint; // in wei
+}
+
+// Approve marketplace contract to transfer a specific token, then list it.
+export async function listAgentForSale(
+  provider: BrowserProvider,
+  nftContractAddress: string,
+  marketplaceAddress: string,
+  tokenId: number,
+  priceInWei: bigint
+): Promise<string> {
+  const signer = await provider.getSigner();
+
+  // First: approve marketplace to move this token
+  const nftContract = new Contract(nftContractAddress, [
+    "function approve(address to, uint256 tokenId) external",
+    "function getApproved(uint256 tokenId) external view returns (address)"
+  ], signer);
+
+  const approved = await nftContract.getApproved(tokenId);
+  if (approved.toLowerCase() !== marketplaceAddress.toLowerCase()) {
+    const approveTx = await nftContract.approve(marketplaceAddress, tokenId);
+    await approveTx.wait();
+  }
+
+  // Then: list on marketplace
+  const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, signer);
+  const tx = await marketplace.listAgent(tokenId, priceInWei);
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
+// Buy a listed agent by sending the exact price.
+export async function buyAgentFromMarketplace(
+  provider: BrowserProvider,
+  marketplaceAddress: string,
+  tokenId: number,
+  priceInWei: bigint
+): Promise<string> {
+  const signer = await provider.getSigner();
+  const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, signer);
+  const tx = await marketplace.buyAgent(tokenId, { value: priceInWei });
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
+// Remove your own listing.
+export async function delistAgent(
+  provider: BrowserProvider,
+  marketplaceAddress: string,
+  tokenId: number
+): Promise<string> {
+  const signer = await provider.getSigner();
+  const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, signer);
+  const tx = await marketplace.delistAgent(tokenId);
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
+// Fetch all active listings from the contract.
+export async function fetchActiveListings(
+  provider: BrowserProvider,
+  marketplaceAddress: string
+): Promise<MarketplaceListing[]> {
+  const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
+  const [tokenIds, sellers, prices] = await marketplace.getActiveListings();
+  return (tokenIds as bigint[]).map((tid, i) => ({
+    tokenId: Number(tid),
+    seller: sellers[i] as string,
+    price: prices[i] as bigint
+  }));
+}
+
+// ─── Local mock storage for sandbox testing ───────────────────────────────────
 
 // Local mock storage for sandbox testing
 const MOCK_STORAGE_KEY = 'mangamon_mock_players';

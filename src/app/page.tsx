@@ -3,10 +3,17 @@
 import React, { useState } from 'react';
 import Dashboard from '../components/Dashboard';
 import PitchView from '../components/PitchView';
+import Shop from '../components/Shop';
 import { Player } from '../types/game';
 
+// Update these after deploying your contracts
+const NFT_CONTRACT_ADDRESS = '0x9aE7A8A31D0cf6c429c629532822a1017c603b55';
+const MARKETPLACE_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // replace after deploy
+
+type View = 'dashboard' | 'pitch' | 'shop';
+
 export default function Home() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'pitch'>('dashboard');
+  const [activeView, setActiveView] = useState<View>('dashboard');
   const [activeSquad, setActiveSquad] = useState<Player[]>([]);
 
   const handleStartMatch = (squad: Player[]) => {
@@ -20,10 +27,53 @@ export default function Home() {
 
   return (
     <main>
-      {activeView === 'dashboard' ? (
-        <Dashboard onStartMatch={handleStartMatch} />
-      ) : (
+      {/* Global nav — hidden during active match */}
+      {activeView !== 'pitch' && (
+        <nav style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '8px',
+          padding: '20px 20px 0',
+        }}>
+          {(['dashboard', 'shop'] as const).map((view) => (
+            <button
+              key={view}
+              onClick={() => setActiveView(view)}
+              style={{
+                padding: '10px 28px',
+                borderRadius: '8px',
+                border: activeView === view
+                  ? '1.5px solid var(--monad-purple)'
+                  : '1.5px solid rgba(255,255,255,0.08)',
+                backgroundColor: activeView === view
+                  ? 'rgba(138, 43, 226, 0.15)'
+                  : 'transparent',
+                color: activeView === view ? '#fff' : '#8b949e',
+                fontSize: '13px',
+                fontWeight: 700,
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {view === 'dashboard' ? 'My Squad' : 'Agent Shop'}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {activeView === 'dashboard' && (
+        <Dashboard onStartMatch={handleStartMatch} onGoToShop={() => setActiveView('shop')} />
+      )}
+      {activeView === 'pitch' && (
         <PitchView squad={activeSquad} onBackToDashboard={handleBackToDashboard} />
+      )}
+      {activeView === 'shop' && (
+        <Shop
+          nftContractAddress={NFT_CONTRACT_ADDRESS}
+          marketplaceAddress={MARKETPLACE_CONTRACT_ADDRESS}
+        />
       )}
     </main>
   );

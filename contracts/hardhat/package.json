@@ -1,0 +1,17 @@
+{
+  "name": "mangamon-contracts",
+  "version": "1.0.0",
+  "description": "MangaMon smart contracts — Hardhat + Monad Testnet",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "hardhat run scripts/deploy.js --network monadTestnet"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^17.3.1",
+    "hardhat": "^2.22.18"
+  }
+}
