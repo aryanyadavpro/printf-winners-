@@ -5,629 +5,295 @@ import { Player, PersonaTrait } from '../types/game';
 import {
   isMetaMaskAvailable,
   connectMetaMask,
-  mintPlayerNFT,
   getMockPlayers,
   saveMockPlayer,
   clearMockPlayers,
-  checkNameTaken,
 } from '../utils/web3';
-import { Wallet, ShieldAlert, Cpu, Sparkles, Plus, Trash2, Trophy, Loader2, Tag } from 'lucide-react';
+import { Wallet, ShieldAlert, Trophy, Trash2, Zap, ChevronRight } from 'lucide-react';
 import { BrowserProvider } from 'ethers';
 
 interface DashboardProps {
   onStartMatch: (squad: Player[]) => void;
-  onGoToShop?: () => void;
   onWalletConnect?: (address: string, provider: BrowserProvider) => void;
 }
 
-export default function Dashboard({ onStartMatch, onGoToShop, onWalletConnect }: DashboardProps) {
-  // Wallet state
-  const [walletAddress, setWalletAddress] = useState<string>('');
-  const [contractAddress, setContractAddress] = useState<string>('0xed41C47315306e8fE56A330D1e938b257FAC7aE5');
-  const [provider, setProvider] = useState<BrowserProvider | null>(null);
-  const [isMMInstalled, setIsMMInstalled] = useState<boolean>(false);
-  const [web3Connected, setWeb3Connected] = useState<boolean>(false);
+const POSITION_LABELS = ['GK', 'DF L', 'DF R', 'MF', 'FW'];
 
-  // UI state
-  const [searchName, setSearchName] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [generatedProfile, setGeneratedProfile] = useState<any>(null);
-  const [myPlayers, setMyPlayers] = useState<Player[]>([]);
-  const [txLog, setTxLog] = useState<{ hash: string; status: string; latency?: number } | null>(null);
-  const [isMinting, setIsMinting] = useState<boolean>(false);
+const TRAIT_META: Record<string, { color: string; bg: string }> = {
+  'Arrogant':    { color: '#E8001D', bg: '#FFE5E8' },
+  'Calculative': { color: '#0033A0', bg: '#E5EBFF' },
+  'Panic-Prone': { color: '#555e70', bg: '#eef0f3' },
+  'Maverick':    { color: '#9c6e00', bg: '#FFF8E0' },
+  'Team-First':  { color: '#00A651', bg: '#E5F7ED' },
+};
+
+const DEFAULT_STARS: Player[] = [
+  { id:'s1', name:'Lionel Messi',    side:'red', speed:84, passing:96, shooting:92, defense:38, stamina:82, currentStamina:100, trait:'Calculative',  x:0,y:0,vx:0,vy:0,state:'idle',targetX:0,targetY:0,hasBall:false,timeSinceLastAction:0,goals:0,assists:0 },
+  { id:'s2', name:'Erling Haaland',  side:'red', speed:89, passing:65, shooting:94, defense:45, stamina:88, currentStamina:100, trait:'Maverick',     x:0,y:0,vx:0,vy:0,state:'idle',targetX:0,targetY:0,hasBall:false,timeSinceLastAction:0,goals:0,assists:0 },
+  { id:'s3', name:'Jude Bellingham', side:'red', speed:83, passing:86, shooting:85, defense:80, stamina:92, currentStamina:100, trait:'Team-First',   x:0,y:0,vx:0,vy:0,state:'idle',targetX:0,targetY:0,hasBall:false,timeSinceLastAction:0,goals:0,assists:0 },
+  { id:'s4', name:'Kylian Mbappé',   side:'red', speed:97, passing:82, shooting:90, defense:36, stamina:89, currentStamina:100, trait:'Arrogant',     x:0,y:0,vx:0,vy:0,state:'idle',targetX:0,targetY:0,hasBall:false,timeSinceLastAction:0,goals:0,assists:0 },
+  { id:'s5', name:'Bukayo Saka',     side:'red', speed:86, passing:84, shooting:82, defense:65, stamina:90, currentStamina:100, trait:'Panic-Prone',  x:0,y:0,vx:0,vy:0,state:'idle',targetX:0,targetY:0,hasBall:false,timeSinceLastAction:0,goals:0,assists:0 },
+];
+
+export default function Dashboard({ onStartMatch, onWalletConnect }: DashboardProps) {
+  const [walletAddress, setWalletAddress] = useState('');
+  const [provider, setProvider]           = useState<BrowserProvider | null>(null);
+  const [isMMInstalled, setIsMMInstalled] = useState(false);
+  const [web3Connected, setWeb3Connected] = useState(false);
+  const [myPlayers, setMyPlayers]         = useState<Player[]>([]);
 
   useEffect(() => {
     setIsMMInstalled(isMetaMaskAvailable());
-    // Load local storage players on start
-    setMyPlayers(getMockPlayers());
+    const saved = getMockPlayers();
+    setMyPlayers(saved.length > 0 ? saved : DEFAULT_STARS);
+    if (saved.length === 0) DEFAULT_STARS.forEach(saveMockPlayer);
   }, []);
 
   const handleConnectWallet = async () => {
     try {
       const { address, provider: p } = await connectMetaMask();
-      setWalletAddress(address);
-      setProvider(p);
-      setWeb3Connected(true);
+      setWalletAddress(address); setProvider(p); setWeb3Connected(true);
       onWalletConnect?.(address, p);
-    } catch (e: any) {
-      alert(e.message || "Failed to connect wallet.");
-    }
-  };
-
-  const handleGeneratePlayer = async () => {
-    if (!searchName.trim()) return;
-    setIsGenerating(true);
-    setGeneratedProfile(null);
-    setTxLog(null);
-    try {
-      // Check on-chain uniqueness before spending an LLM call
-      if (web3Connected && provider) {
-        const { taken, tokenId } = await checkNameTaken(provider, contractAddress, searchName.trim());
-        if (taken) {
-          alert(`"${searchName.trim()}" is already a 1-of-1 agent on chain (Token #${tokenId}). Only one can ever exist — find them in the Agent Shop.`);
-          setIsGenerating(false);
-          return;
-        }
-      }
-      const res = await fetch(`/api/players?name=${encodeURIComponent(searchName.trim())}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setGeneratedProfile(data);
-    } catch (e: any) {
-      alert(e.message || "Error generating player profile.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleMintPlayer = async () => {
-    if (!generatedProfile) return;
-    setIsMinting(true);
-    setTxLog(null);
-
-    const name = generatedProfile.name;
-    const trait = generatedProfile.trait as PersonaTrait;
-    const { speed, passing, shooting, defense, stamina } = generatedProfile;
-
-    try {
-      if (web3Connected && provider) {
-        // Real On-Chain Mint
-        setTxLog({ hash: "Pending...", status: "Initiating MetaMask Transaction..." });
-        const { txHash, tokenId } = await mintPlayerNFT(
-          provider,
-          contractAddress,
-          name,
-          trait,
-          speed,
-          passing,
-          shooting,
-          defense,
-          stamina
-        );
-        
-        const newPlayer: Player = {
-          id: `onchain_${tokenId}`,
-          tokenId,
-          name,
-          side: 'red', // Will be placed in team
-          speed,
-          passing,
-          shooting,
-          defense,
-          stamina,
-          currentStamina: 100,
-          trait,
-          x: 0,
-          y: 0,
-          vx: 0,
-          vy: 0,
-          state: 'idle',
-          targetX: 0,
-          targetY: 0,
-          hasBall: false,
-          timeSinceLastAction: 0,
-          goals: 0,
-          assists: 0
-        };
-
-        saveMockPlayer(newPlayer);
-        setMyPlayers(getMockPlayers());
-        setTxLog({ 
-          hash: txHash, 
-          status: "Confirmed on Monad Testnet! Parallel execution completed." 
-        });
-      } else {
-        // Mock Sandbox Mint with parallel-execution simulation
-        setTxLog({ hash: "Generating mock transaction...", status: "Routing through Parallel EVM Pipeline..." });
-        
-        // Wait 800ms to simulate Monad's rapid sub-second block confirmation
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        const mockId = Math.floor(Math.random() * 1000000);
-        const mockHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        
-        const newPlayer: Player = {
-          id: `mock_${mockId}`,
-          tokenId: mockId,
-          name,
-          side: 'red',
-          speed,
-          passing,
-          shooting,
-          defense,
-          stamina,
-          currentStamina: 100,
-          trait,
-          x: 0,
-          y: 0,
-          vx: 0,
-          vy: 0,
-          state: 'idle',
-          targetX: 0,
-          targetY: 0,
-          hasBall: false,
-          timeSinceLastAction: 0,
-          goals: 0,
-          assists: 0
-        };
-
-        saveMockPlayer(newPlayer);
-        setMyPlayers(getMockPlayers());
-        setTxLog({ 
-          hash: mockHash, 
-          status: "Confirmed on Monad Sandbox!",
-          latency: 48 // 48ms transaction completion!
-        });
-      }
-      setGeneratedProfile(null);
-      setSearchName('');
-    } catch (e: any) {
-      alert(e.message || "Failed to mint NFT.");
-      setTxLog(null);
-    } finally {
-      setIsMinting(false);
-    }
+    } catch (e: any) { alert(e.message || 'Failed to connect wallet.'); }
   };
 
   const handleAutoFill = () => {
-    // Fill with top stars
-    const mockStars: Player[] = [
-      { id: 'mock_m1', name: "Lionel Messi", side: 'red', speed: 84, passing: 96, shooting: 92, defense: 38, stamina: 82, currentStamina: 100, trait: 'Calculative', x: 0, y: 0, vx: 0, vy: 0, state: 'idle', targetX: 0, targetY: 0, hasBall: false, timeSinceLastAction: 0, goals: 0, assists: 0 },
-      { id: 'mock_m2', name: "Erling Haaland", side: 'red', speed: 89, passing: 65, shooting: 94, defense: 45, stamina: 88, currentStamina: 100, trait: 'Maverick', x: 0, y: 0, vx: 0, vy: 0, state: 'idle', targetX: 0, targetY: 0, hasBall: false, timeSinceLastAction: 0, goals: 0, assists: 0 },
-      { id: 'mock_m3', name: "Jude Bellingham", side: 'red', speed: 83, passing: 86, shooting: 85, defense: 80, stamina: 92, currentStamina: 100, trait: 'Team-First', x: 0, y: 0, vx: 0, vy: 0, state: 'idle', targetX: 0, targetY: 0, hasBall: false, timeSinceLastAction: 0, goals: 0, assists: 0 },
-      { id: 'mock_m4', name: "Kylian Mbappé", side: 'red', speed: 97, passing: 82, shooting: 90, defense: 36, stamina: 89, currentStamina: 100, trait: 'Arrogant', x: 0, y: 0, vx: 0, vy: 0, state: 'idle', targetX: 0, targetY: 0, hasBall: false, timeSinceLastAction: 0, goals: 0, assists: 0 },
-      { id: 'mock_m5', name: "Bukayo Saka", side: 'red', speed: 86, passing: 84, shooting: 82, defense: 65, stamina: 90, currentStamina: 100, trait: 'Panic-Prone', x: 0, y: 0, vx: 0, vy: 0, state: 'idle', targetX: 0, targetY: 0, hasBall: false, timeSinceLastAction: 0, goals: 0, assists: 0 }
-    ];
-
     clearMockPlayers();
-    mockStars.forEach(saveMockPlayer);
+    DEFAULT_STARS.forEach(saveMockPlayer);
     setMyPlayers(getMockPlayers());
   };
 
-  const handleClearSquad = () => {
-    clearMockPlayers();
-    setMyPlayers([]);
-  };
+  const handleClearSquad = () => { clearMockPlayers(); setMyPlayers([]); };
 
   const handleStartGame = () => {
-    if (myPlayers.length < 5) {
-      alert("You need at least 5 minted players in your locker to form a squad!");
-      return;
-    }
-    // Take first 5 players for the kickoff
+    if (myPlayers.length < 5) { alert('You need at least 5 players to enter the pitch!'); return; }
     onStartMatch(myPlayers.slice(0, 5));
   };
 
-  const getTraitColor = (trait: string) => {
-    switch (trait) {
-      case 'Arrogant': return 'var(--color-arrogant)';
-      case 'Calculative': return 'var(--neon-cyan)';
-      case 'Panic-Prone': return 'var(--color-panic)';
-      case 'Maverick': return 'var(--color-maverick)';
-      case 'Team-First': return 'var(--color-team)';
-      default: return '#ffffff';
-    }
-  };
+  const traitMeta = (trait: string) => TRAIT_META[trait] ?? { color: '#000', bg: '#f5f5f5' };
+  const totalOVR = myPlayers.slice(0, 5).reduce((acc, p) => acc + Math.round((p.speed + p.passing + p.shooting + p.defense + p.stamina) / 5), 0);
+  const avgOVR   = myPlayers.length > 0 ? Math.round(totalOVR / Math.min(myPlayers.length, 5)) : 0;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-      
-      {/* Header Banner */}
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ 
-          fontFamily: 'var(--font-manga)', 
-          fontSize: '84px', 
-          letterSpacing: '3px',
-          color: 'var(--fifa-green)',
-          textShadow: '6px 6px 0px #000000',
-          WebkitTextStroke: '2.5px #000000',
-          marginBottom: '15px',
-          lineHeight: 0.95
-        }}>
-          PROJECT MANGA-MON
-        </h1>
-        <p style={{ 
-          fontSize: '16px', 
-          color: '#000000', 
-          maxWidth: '650px', 
-          margin: '0 auto',
-          backgroundColor: 'var(--fifa-gold)',
-          border: '3px solid #000000',
-          padding: '8px 16px',
-          display: 'inline-block',
-          boxShadow: '4px 4px 0px #000000',
-          fontWeight: 800,
-          textTransform: 'uppercase',
-          letterSpacing: '1px'
-        }}>
-          Deconstruct real-world football giants, map their personas via generative AI, and mint them as dynamic NFTs on Monad.
-        </p>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '36px 20px' }}>
+
+      {/* ── HERO ── */}
+      <div style={{
+        background: 'var(--fifa-blue)',
+        border: '4px solid #000',
+        boxShadow: 'var(--shadow-lg)',
+        padding: '40px 48px',
+        marginBottom: '32px',
+        position: 'relative', overflow: 'hidden',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        gap: '24px', flexWrap: 'wrap',
+      }}>
+        {/* Halftone bg */}
+        <div style={{ position:'absolute', inset:0, opacity:0.07, backgroundImage:'radial-gradient(circle, #fff 1.5px, transparent 1.5px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
+        {/* Big BG number */}
+        <div style={{ position:'absolute', right:'-8px', top:'-24px', fontFamily:'var(--font-display)', fontSize:'220px', color:'rgba(255,255,255,0.04)', lineHeight:1, userSelect:'none', pointerEvents:'none' }}>11</div>
+
+        <div style={{ position:'relative', zIndex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'14px' }}>
+            <div style={{ background:'var(--fifa-gold-light)', border:'3px solid #000', boxShadow:'3px 3px 0 #000', padding:'2px 10px', fontFamily:'var(--font-display)', fontSize:'13px', letterSpacing:'3px', color:'#000', transform:'rotate(-1deg)' }}>FIFA</div>
+            <div style={{ height:'2px', width:'40px', background:'var(--fifa-gold-light)' }} />
+            <div style={{ border:'2px solid rgba(255,255,255,0.35)', padding:'2px 8px', fontFamily:'var(--font-display)', fontSize:'11px', letterSpacing:'2px', color:'rgba(255,255,255,0.6)' }}>SQUAD BUILDER</div>
+          </div>
+          <h1 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(44px,6vw,84px)', letterSpacing:'2px', color:'#fff', lineHeight:0.9, marginBottom:'16px' }}>
+            BUILD YOUR<br />
+            <span style={{ color:'var(--fifa-gold-light)', WebkitTextStroke:'2px #000' }}>SQUAD</span>
+          </h1>
+          <p style={{ fontFamily:'var(--font-primary)', fontWeight:700, fontSize:'13px', color:'rgba(255,255,255,0.75)', maxWidth:'380px', lineHeight:1.6 }}>
+            Assemble 5 players with unique AI personas, then hit the pitch or challenge opponents in a live match.
+          </p>
+        </div>
+
+        {/* Squad OVR badge */}
+        {myPlayers.length >= 5 && (
+          <div style={{ position:'relative', zIndex:1, textAlign:'center', flexShrink:0 }}>
+            <div style={{ background:'var(--fifa-gold-light)', border:'4px solid #000', boxShadow:'var(--shadow-md)', padding:'16px 24px' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:'56px', color:'#000', lineHeight:1 }}>{avgOVR}</div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:'13px', letterSpacing:'2px', color:'#555' }}>SQUAD OVR</div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '50px' }}>
-        
-        {/* Left Column: Wallet Connect & AI Generator */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          
-          {/* Web3 Wallet Configuration */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Wallet style={{ color: 'var(--monad-purple)' }} />
-                <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Monad Blockchain Connection</h3>
+      {/* ── TWO-COLUMN LAYOUT ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'340px 1fr', gap:'28px', alignItems:'start' }}>
+
+        {/* LEFT: Wallet + actions */}
+        <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+
+          {/* Wallet panel */}
+          <div className="glass-panel" style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'3px solid #000', paddingBottom:'14px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                <div style={{ background:'var(--fifa-blue)', border:'3px solid #000', padding:'6px', boxShadow:'3px 3px 0 #000' }}>
+                  <Wallet size={16} color="#fff" strokeWidth={3} />
+                </div>
+                <span style={{ fontFamily:'var(--font-display)', fontSize:'18px', letterSpacing:'2px' }}>WALLET</span>
               </div>
-              <span style={{ 
-                fontSize: '11px', 
-                padding: '3px 8px', 
-                borderRadius: '12px', 
-                backgroundColor: web3Connected ? 'rgba(0, 143, 58, 0.15)' : 'rgba(0, 0, 0, 0.05)',
-                color: web3Connected ? 'var(--fifa-green-text)' : '#555555',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                border: '1.5px solid #000000'
-              }}>
-                {web3Connected ? "MetaMask Active" : "Sandbox Mode"}
-              </span>
+              <div style={{ background: web3Connected ? '#00A651' : '#fff', border:'3px solid #000', boxShadow:'3px 3px 0 #000', padding:'3px 10px', fontFamily:'var(--font-display)', fontSize:'11px', letterSpacing:'1.5px', color: web3Connected ? '#fff' : '#000' }}>
+                {web3Connected ? 'LIVE' : 'SANDBOX'}
+              </div>
             </div>
 
             {web3Connected ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ backgroundColor: '#ffffff', color: '#000000', padding: '12px', border: '3px solid #000000', borderRadius: '0px', boxShadow: '4px 4px 0px #000000' }}>
-                  <p style={{ fontSize: '11px', color: '#555555', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Connected Wallet Address</p>
-                  <p style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 'bold', wordBreak: 'break-all' }}>{walletAddress}</p>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#ffffff', display: 'block', marginBottom: '5px', fontWeight: 'bold', textTransform: 'uppercase' }}>Contract Address (Monad Testnet)</label>
-                  <input 
-                    type="text" 
-                    value={contractAddress}
-                    onChange={(e) => setContractAddress(e.target.value)}
-                    style={{ 
-                      width: '100%', 
-                      padding: '10px', 
-                      backgroundColor: '#ffffff', 
-                      border: '3px solid #000000', 
-                      borderRadius: '0px',
-                      color: '#000000',
-                      fontFamily: 'monospace',
-                      fontSize: '12px',
-                      fontWeight: 'bold'
-                    }}
-                  />
-                </div>
+              <div style={{ background:'var(--bg-alt)', border:'3px solid #000', boxShadow:'3px 3px 0 #000', padding:'12px' }}>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:'10px', letterSpacing:'2px', color:'#555', marginBottom:'4px' }}>CONNECTED</div>
+                <div style={{ fontFamily:'monospace', fontSize:'12px', fontWeight:800, wordBreak:'break-all', color:'#000' }}>{walletAddress}</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.5 }}>
-                  Connect your MetaMask to deploy/mint direct to Monad Testnet, or play in <strong>Sandbox Mode</strong> with fast instant mock updates.
+              <>
+                <p style={{ fontSize:'13px', fontWeight:600, color:'#333', lineHeight:1.6 }}>
+                  Connect MetaMask to settle matches on <strong>Monad Testnet</strong>, or play instantly in free <strong>Sandbox Mode</strong>.
                 </p>
                 {isMMInstalled ? (
-                  <button onClick={handleConnectWallet} className="btn-primary">
-                    Connect MetaMask
+                  <button onClick={handleConnectWallet} className="btn-primary" style={{ justifyContent:'center' }}>
+                    <Wallet size={16} strokeWidth={3} /> Connect MetaMask
                   </button>
                 ) : (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    backgroundColor: 'rgba(255, 170, 0, 0.08)', 
-                    border: '1px solid rgba(255, 170, 0, 0.2)',
-                    padding: '12px',
-                    borderRadius: '8px'
-                  }}>
-                    <ShieldAlert style={{ color: '#ffaa00', flexShrink: 0 }} />
-                    <p style={{ fontSize: '12px', color: '#ffaa00' }}>
-                      MetaMask extension not detected. Running automatically in offline local sandbox.
-                    </p>
+                  <div style={{ display:'flex', gap:'10px', background:'#FFF8E0', border:'3px solid #000', boxShadow:'3px 3px 0 #000', padding:'12px' }}>
+                    <ShieldAlert size={18} style={{ color:'var(--color-maverick)', flexShrink:0 }} strokeWidth={3} />
+                    <p style={{ fontSize:'12px', fontWeight:700, color:'#555' }}>MetaMask not detected — Sandbox Mode active.</p>
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
-          {/* AI Player generator */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Cpu style={{ color: 'var(--neon-cyan)' }} />
-              <h3 style={{ fontSize: '18px', fontWeight: 600 }}>LLM Footballer Persona Mapper</h3>
-            </div>
-
-            <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.5 }}>
-              Type the name of any top football player. Our AI will analyze their real-world persona and map their stats and comic traits for the simulator.
-            </p>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input 
-                type="text" 
-                placeholder="e.g. Messi, Haaland, Mbappe, Bellingham..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleGeneratePlayer()}
-                disabled={isGenerating}
-                style={{ 
-                  flex: 1, 
-                  padding: '12px', 
-                  backgroundColor: '#ffffff', 
-                  border: '3px solid #000000', 
-                  borderRadius: '0px',
-                  color: '#000000',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}
-              />
-              <button 
-                onClick={handleGeneratePlayer} 
-                disabled={isGenerating || !searchName.trim()}
-                className="btn-primary"
-                style={{ padding: '12px 20px' }}
-              >
-                {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles size={16} />}
-                Map
-              </button>
-            </div>
-
-            {/* Generated Profile Preview */}
-            {generatedProfile && (
-              <div style={{ 
-                backgroundColor: '#ffffff', 
-                color: '#000000',
-                border: `4px solid #000000`,
-                borderRadius: '0px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '15px',
-                boxShadow: `8px 8px 0px ${getTraitColor(generatedProfile.trait)}`
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h4 style={{ fontSize: '20px', fontWeight: 800 }}>{generatedProfile.name}</h4>
-                    <span style={{ 
-                      fontSize: '12px', 
-                      color: getTraitColor(generatedProfile.trait),
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}>
-                      Trait: {generatedProfile.trait}
-                    </span>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: '13px', fontStyle: 'italic', color: '#222222', lineHeight: 1.4 }}>
-                  &ldquo;{generatedProfile.reasoning}&rdquo;
-                </p>
-
-                {/* Stats list */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
-                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>SPD</div>
-                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.speed}</div>
-                  </div>
-                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
-                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>PAS</div>
-                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.passing}</div>
-                  </div>
-                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
-                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>SHT</div>
-                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.shooting}</div>
-                  </div>
-                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
-                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>DEF</div>
-                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.defense}</div>
-                  </div>
-                  <div style={{ backgroundColor: '#f0f2f5', padding: '8px', border: '2px solid #000000', borderRadius: '0px' }}>
-                    <div style={{ fontSize: '10px', color: '#555555', fontWeight: 'bold', marginBottom: '4px' }}>STM</div>
-                    <div style={{ fontSize: '16px', fontWeight: '900', color: '#000000' }}>{generatedProfile.stamina}</div>
-                  </div>
-                </div>
-
-                <button onClick={handleMintPlayer} disabled={isMinting} className="btn-primary" style={{ alignSelf: 'stretch', justifyContent: 'center' }}>
-                  {isMinting ? <Loader2 className="animate-spin" /> : <Plus size={16} />}
-                  {web3Connected ? "Mint on Monad Testnet" : "Mint Dynamic NFT (Sandbox)"}
-                </button>
+          {/* Match info panel */}
+          <div style={{ background:'var(--fifa-red)', border:'4px solid #000', boxShadow:'var(--shadow-md)', padding:'20px', display:'flex', flexDirection:'column', gap:'12px', position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', inset:0, opacity:0.08, backgroundImage:'radial-gradient(circle, #fff 1.5px, transparent 1.5px)', backgroundSize:'20px 20px', pointerEvents:'none' }} />
+            <div style={{ position:'relative', zIndex:1 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:'16px', letterSpacing:'2px', color:'#fff', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <Zap size={16} strokeWidth={3} /> MATCH MODES
               </div>
-            )}
-
-            {/* Transaction feedback logs */}
-            {txLog && (
-              <div style={{ 
-                backgroundColor: '#ffffff', 
-                border: '3px solid #000000', 
-                padding: '15px', 
-                borderRadius: '0px',
-                boxShadow: '4px 4px 0px #000000',
-                fontSize: '12px',
-                color: '#000000'
-              }}>
-                <p style={{ color: '#000000', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '5px' }}>Transaction Log:</p>
-                <p style={{ color: 'var(--fifa-green-text)', fontWeight: 'bold', marginBottom: '8px' }}>{txLog.status}</p>
-                {txLog.latency && (
-                  <p style={{ color: '#d47a00', marginBottom: '8px' }}>Confirmation Latency: <strong>{txLog.latency}ms</strong></p>
-                )}
-                <p style={{ color: '#555555', fontFamily: 'monospace', wordBreak: 'break-all' }}>Hash: {txLog.hash}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Squad Locker */}
-        <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '520px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Trophy style={{ color: 'var(--monad-purple)' }} />
-              <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Your Player Locker ({myPlayers.length}/5 minimum)</h3>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {myPlayers.length === 0 && (
-                <button onClick={handleAutoFill} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }}>
-                  Auto-Fill Stars
-                </button>
-              )}
-              {myPlayers.length > 0 && (
-                <button onClick={handleClearSquad} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px', color: '#ff3b30', borderColor: 'rgba(255, 59, 48, 0.2)' }}>
-                  Clear Locker
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* List of squad players */}
-          {myPlayers.length === 0 ? (
-            <div style={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              border: '3px dashed #000000',
-              borderRadius: '0px',
-              padding: '40px',
-              color: '#333333',
-              textAlign: 'center',
-              backgroundColor: '#ffffff'
-            }}>
-              <Cpu size={40} style={{ marginBottom: '15px', color: '#000000' }} />
-              <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>Locker is empty.</p>
-              <p style={{ fontSize: '12px', maxWidth: '300px', color: '#555555' }}>
-                Use the generator on the left to map real-world superstars, or click &ldquo;Auto-Fill Stars&rdquo; to populate a mock team.
-              </p>
-            </div>
-          ) : (
-            <div style={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '12px', 
-              maxHeight: '380px', 
-              overflowY: 'auto',
-              paddingRight: '5px'
-            }}>
-              {myPlayers.map((player, index) => (
-                <div 
-                  key={player.id} 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    backgroundColor: '#ffffff',
-                    color: '#000000',
-                    border: '3px solid #000000',
-                    borderLeft: `10px solid ${getTraitColor(player.trait)}`,
-                    borderRadius: '0px',
-                    padding: '12px 16px',
-                    boxShadow: '4px 4px 0px #000000'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    {/* Trait circle representation */}
-                    <div style={{ 
-                      width: '24px', 
-                      height: '24px', 
-                      borderRadius: '50%', 
-                      backgroundColor: '#0f111a', 
-                      border: `3px solid ${getTraitColor(player.trait)}`,
-                      boxShadow: `0 0 8px ${getTraitColor(player.trait)}`
-                    }} />
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{player.name}</div>
-                      <div style={{ fontSize: '11px', color: '#555555', marginTop: '2px' }}>
-                        Pos: {index === 0 ? 'GK' : index === 1 ? 'DF Left' : index === 2 ? 'DF Right' : index === 3 ? 'MF' : 'FW'} | Trait: <strong style={{ color: getTraitColor(player.trait) }}>{player.trait}</strong>
-                      </div>
-                    </div>
+              {[
+                ['⚽ Pitch Sim',   'Play a solo 5v5 AI match right now'],
+                ['⚔ Live Match',  'Challenge real opponents on-chain'],
+              ].map(([title, desc]) => (
+                <div key={title} style={{ display:'flex', alignItems:'center', gap:'10px', paddingTop:'8px', borderTop:'2px solid rgba(255,255,255,0.2)' }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontSize:'14px', letterSpacing:'1.5px', color:'#fff' }}>{title}</div>
+                    <div style={{ fontSize:'11px', fontWeight:600, color:'rgba(255,255,255,0.7)', marginTop:'2px' }}>{desc}</div>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    {/* Stats summary */}
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#000000', fontWeight: 'bold' }}>
-                      <span>S:{player.speed}</span>
-                      <span>P:{player.passing}</span>
-                      <span>H:{player.shooting}</span>
-                      <span>D:{player.defense}</span>
-                    </div>
-
-                    <span style={{ fontSize: '11px', color: '#333333', fontWeight: 'bold' }}>
-                      Token #{player.tokenId ? player.tokenId.toString().slice(-4) : 'MOCK'}
-                    </span>
-
-                    {onGoToShop && (
-                      <button
-                        onClick={onGoToShop}
-                        title="List this agent for sale in the Shop"
-                        className="btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <Tag size={11} /> Sell
-                      </button>
-                    )}
-                  </div>
+                  <ChevronRight size={16} color="rgba(255,255,255,0.5)" strokeWidth={3} />
                 </div>
               ))}
             </div>
+          </div>
+
+        </div>
+
+        {/* RIGHT: Player locker */}
+        <div className="glass-panel" style={{ display:'flex', flexDirection:'column', gap:'20px', minHeight:'500px' }}>
+          {/* Header */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'3px solid #000', paddingBottom:'14px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ background:'var(--fifa-red)', border:'3px solid #000', padding:'6px', boxShadow:'3px 3px 0 #000' }}>
+                <Trophy size={16} color="#fff" strokeWidth={3} />
+              </div>
+              <div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:'20px', letterSpacing:'2px' }}>PLAYER LOCKER</div>
+                <div style={{ fontFamily:'var(--font-primary)', fontSize:'11px', fontWeight:700, color:'#555' }}>{myPlayers.length} PLAYERS · NEED 5 MINIMUM</div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:'8px' }}>
+              <button onClick={handleAutoFill} className="btn-secondary" style={{ padding:'6px 14px', fontSize:'12px' }}>
+                Auto-Fill Stars
+              </button>
+              {myPlayers.length > 0 && (
+                <button onClick={handleClearSquad} className="btn-danger" style={{ padding:'6px 12px', fontSize:'12px' }}>
+                  <Trash2 size={12} strokeWidth={3} /> Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {myPlayers.length === 0 ? (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', border:'4px dashed #000', background:'var(--bg-alt)', padding:'48px', textAlign:'center', gap:'14px' }}>
+              <div style={{ background:'#fff', border:'4px solid #000', padding:'16px', boxShadow:'var(--shadow-md)' }}>
+                <Trophy size={36} strokeWidth={2} color="var(--fifa-blue)" />
+              </div>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:'20px', letterSpacing:'2px' }}>LOCKER EMPTY</div>
+              <p style={{ fontSize:'12px', fontWeight:600, color:'#555', maxWidth:'240px', lineHeight:1.6 }}>
+                Click <strong>Auto-Fill Stars</strong> to load a ready-to-play squad of world-class players.
+              </p>
+              <button onClick={handleAutoFill} className="btn-primary" style={{ marginTop:'4px' }}>
+                ⚽ Auto-Fill Stars
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Column headers */}
+              <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 40px 40px 40px 40px', gap:'8px', paddingBottom:'8px', borderBottom:'2px solid #000', paddingLeft:'4px', paddingRight:'4px' }}>
+                <div />
+                <div style={{ fontFamily:'var(--font-display)', fontSize:'10px', letterSpacing:'2px', color:'#555' }}>PLAYER</div>
+                {['SPD','SHT','PAS','DEF'].map(k => (
+                  <div key={k} style={{ fontFamily:'var(--font-display)', fontSize:'10px', letterSpacing:'1px', color:'#555', textAlign:'center' }}>{k}</div>
+                ))}
+              </div>
+
+              {/* Player rows */}
+              <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'8px', overflowY:'auto', paddingRight:'4px' }}>
+                {myPlayers.slice(0, 5).map((player, i) => {
+                  const tm = traitMeta(player.trait);
+                  return (
+                    <div key={player.id} style={{
+                      display:'grid', gridTemplateColumns:'36px 1fr 40px 40px 40px 40px',
+                      alignItems:'center', gap:'8px',
+                      background:'#fff', border:'3px solid #000',
+                      borderLeft:`8px solid ${tm.color}`,
+                      boxShadow:'4px 4px 0 #000', padding:'10px 12px',
+                      transition:'transform 0.1s, box-shadow 0.1s',
+                    }}
+                      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.transform='translate(-2px,-2px)'; el.style.boxShadow='6px 6px 0 #000'; }}
+                      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.transform=''; el.style.boxShadow='4px 4px 0 #000'; }}
+                    >
+                      {/* Position badge */}
+                      <div style={{ background:'var(--fifa-blue)', border:'2px solid #000', width:'32px', height:'32px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontSize:'10px', letterSpacing:'0.5px', color:'#fff' }}>
+                        {POSITION_LABELS[i]}
+                      </div>
+
+                      {/* Name + trait */}
+                      <div>
+                        <div style={{ fontFamily:'var(--font-display)', fontSize:'15px', letterSpacing:'1px', lineHeight:1 }}>{player.name}</div>
+                        <span className="trait-pill" style={{ marginTop:'5px', background:tm.bg, color:tm.color, fontSize:'9px', padding:'1px 6px', boxShadow:'none', display:'inline-block' }}>
+                          {player.trait}
+                        </span>
+                      </div>
+
+                      {/* Stats */}
+                      {[player.speed, player.shooting, player.passing, player.defense].map((val, si) => (
+                        <div key={si} style={{ textAlign:'center' }}>
+                          <div style={{
+                            fontFamily:'var(--font-display)', fontSize:'16px', fontWeight:900,
+                            color: val >= 85 ? tm.color : '#000',
+                          }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
-          {/* Action button to pitch */}
-          <button 
+          {/* Enter Pitch CTA */}
+          <button
             onClick={handleStartGame}
             disabled={myPlayers.length < 5}
-            className="btn-primary" 
-            style={{ 
-              alignSelf: 'stretch', 
-              justifyContent: 'center', 
-              fontSize: '18px',
-              fontFamily: 'var(--font-manga)',
-              padding: '15px',
-              letterSpacing: '2px'
-            }}
+            className="btn-primary"
+            style={{ justifyContent:'center', padding:'18px', fontSize:'24px', letterSpacing:'4px', marginTop:'auto' }}
           >
-            ENTER PITCH ({myPlayers.length}/5)
+            ⚽ ENTER PITCH
           </button>
         </div>
-
       </div>
-
-      <div className="glass-panel" style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '20px', 
-        background: '#ffffff',
-        borderColor: '#000000',
-        border: '3px solid #000000',
-        borderRadius: '0px',
-        boxShadow: '4px 4px 0px #000000',
-        color: '#000000'
-      }}>
-        <Cpu size={40} style={{ color: 'var(--border-black)', flexShrink: 0 }} />
-        <div>
-          <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>On-Chain Dynamic SVGs and Metadata</h4>
-          <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.4 }}>
-            Manga-Mon characters store stats directly in EVM memory. When minted, the Solidity contract dynamically constructs an SVG image showing their current speed, passing power, goals, and glow-aura directly within the metadata. When matches resolve, stats update directly on-chain.
-          </p>
-        </div>
-      </div>
-
     </div>
   );
 }

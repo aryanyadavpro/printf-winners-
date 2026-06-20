@@ -222,6 +222,20 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     socketRef.current?.emit('pick_card', { matchId, cardId });
   }, [matchId]);
 
+  const handleUnpickCard = useCallback((cardId: string) => {
+    socketRef.current?.emit('unpick_card', { matchId, cardId });
+    // Optimistic local update — server will confirm via pick_confirmed events
+    setMySquad(prev => prev.filter(c => c.id !== cardId));
+    setLockedCardIds(prev => {
+      const next = new Set(prev);
+      next.delete(cardId);
+      return next;
+    });
+    // Recalculate points based on removed card's cost
+    const removed = mySquad.find(c => c.id === cardId);
+    if (removed) setMyPoints(prev => prev + removed.cost);
+  }, [matchId, mySquad]);
+
   const handleSubmitFormation = useCallback((formation: Formation) => {
     setMyFormation(formation);
     socketRef.current?.emit('submit_formation', { matchId, formation });
@@ -247,11 +261,12 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     <div>
       {statusMsg && (
         <div style={{
-          textAlign: 'center', padding: '8px', fontSize: '12px',
-          color: '#00ffcc', backgroundColor: 'rgba(0,255,200,0.05)',
-          borderBottom: '1px solid rgba(0,255,200,0.1)',
+          textAlign: 'center', padding: '10px 20px',
+          fontFamily: 'var(--font-display)', fontSize: '14px', letterSpacing: '2px',
+          color: '#000', background: 'var(--fifa-gold-light)',
+          borderBottom: '4px solid #000', boxShadow: '0 4px 0 #000',
         }}>
-          {statusMsg}
+          ⚡ {statusMsg.toUpperCase()}
         </div>
       )}
 
@@ -276,6 +291,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
           timer={timer}
           opponentAddress={opponentAddress}
           onPickCard={handlePickCard}
+          onUnpickCard={handleUnpickCard}
         />
       )}
 

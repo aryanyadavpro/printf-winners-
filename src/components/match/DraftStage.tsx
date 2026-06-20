@@ -1,8 +1,23 @@
 'use client';
 
 import React from 'react';
-import { DraftCard, TIER_COLORS, TRAIT_COLORS } from '../../types/match';
-import { Lock, CheckCircle, Zap } from 'lucide-react';
+import { DraftCard } from '../../types/match';
+import { Lock, X, Zap } from 'lucide-react';
+
+const TIER_META: Record<string, { color: string; bg: string; label: string }> = {
+  Legendary: { color: '#9c6e00', bg: '#FFF8E0', label: 'LEGENDARY' },
+  Epic:      { color: '#6d28d9', bg: '#EDE9FE', label: 'EPIC'      },
+  Rare:      { color: '#0033A0', bg: '#E5EBFF', label: 'RARE'      },
+  Common:    { color: '#374151', bg: '#F3F4F6', label: 'COMMON'    },
+};
+
+const TRAIT_META: Record<string, { color: string; bg: string }> = {
+  'Arrogant':    { color: '#E8001D', bg: '#FFE5E8' },
+  'Calculative': { color: '#0033A0', bg: '#E5EBFF' },
+  'Panic-Prone': { color: '#555e70', bg: '#eef0f3' },
+  'Maverick':    { color: '#9c6e00', bg: '#FFF8E0' },
+  'Team-First':  { color: '#00A651', bg: '#E5F7ED' },
+};
 
 interface DraftStageProps {
   cardPool: DraftCard[];
@@ -12,169 +27,321 @@ interface DraftStageProps {
   timer: number;
   opponentAddress: string;
   onPickCard: (cardId: string) => void;
+  onUnpickCard?: (cardId: string) => void;
 }
 
-function CardTile({ card, locked, owned, canAfford, onPick }: {
+function CardTile({ card, state, canAfford, onPick, onUnpick }: {
   card: DraftCard;
-  locked: boolean;
-  owned: boolean;
+  state: 'available' | 'owned' | 'locked';
   canAfford: boolean;
   onPick: () => void;
+  onUnpick: () => void;
 }) {
-  const tierColor = TIER_COLORS[card.tier];
-  const traitColor = TRAIT_COLORS[card.trait] || '#fff';
-  const disabled = locked || owned || !canAfford;
+  const tier  = TIER_META[card.tier]  ?? TIER_META.Common;
+  const trait = TRAIT_META[card.trait] ?? { color: '#000', bg: '#f5f5f5' };
+
+  const isOwned   = state === 'owned';
+  const isLocked  = state === 'locked';
+  const clickable = isOwned || (!isLocked && canAfford);
+
+  const handleClick = () => {
+    if (isOwned)  { onUnpick(); return; }
+    if (clickable) onPick();
+  };
 
   return (
     <div
-      onClick={disabled ? undefined : onPick}
+      onClick={clickable ? handleClick : undefined}
       style={{
         position: 'relative',
-        backgroundColor: owned ? 'rgba(0,255,200,0.06)' : locked ? 'rgba(255,255,255,0.02)' : '#0f111a',
-        border: `1.5px solid ${owned ? 'rgba(0,255,200,0.4)' : locked ? 'rgba(255,255,255,0.05)' : tierColor + '55'}`,
-        borderRadius: '10px',
-        padding: '12px',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: locked ? 0.35 : 1,
-        transition: 'transform 0.1s, box-shadow 0.1s',
-        boxShadow: !disabled && !owned ? `0 0 10px ${tierColor}22` : 'none',
+        border: isOwned
+          ? '4px solid #00A651'
+          : isLocked
+          ? '3px solid #ccc'
+          : `3px solid #000`,
+        background: isOwned ? '#E5F7ED' : isLocked ? '#F3F4F6' : '#fff',
+        boxShadow: isOwned
+          ? '5px 5px 0 #00A651'
+          : isLocked
+          ? 'none'
+          : canAfford
+          ? '5px 5px 0 #000'
+          : '3px 3px 0 #ccc',
+        cursor: isLocked ? 'not-allowed' : clickable ? 'pointer' : 'default',
+        opacity: isLocked ? 0.45 : !canAfford && !isOwned ? 0.6 : 1,
+        transition: 'transform 0.1s ease, box-shadow 0.1s ease',
+        userSelect: 'none',
       }}
-      onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+      onMouseEnter={e => {
+        if (!clickable || isLocked) return;
+        const el = e.currentTarget as HTMLElement;
+        el.style.transform = 'translate(-2px,-2px)';
+        el.style.boxShadow = isOwned ? '7px 7px 0 #00A651' : '7px 7px 0 #000';
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.transform = '';
+        el.style.boxShadow = isOwned
+          ? '5px 5px 0 #00A651'
+          : isLocked ? 'none'
+          : canAfford ? '5px 5px 0 #000' : '3px 3px 0 #ccc';
+      }}
     >
-      {/* Tier badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+      {/* Tier stripe */}
+      <div style={{ background: tier.bg, borderBottom: '3px solid #000', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '1.5px', color: tier.color }}>{tier.label}</span>
         <span style={{
-          fontSize: '9px', fontWeight: 800, letterSpacing: '1px',
-          color: tierColor, textTransform: 'uppercase',
-        }}>{card.tier}</span>
-        <span style={{
-          fontSize: '13px', fontWeight: 800,
-          color: canAfford && !locked && !owned ? 'var(--neon-cyan)' : '#5d637f',
-        }}>{card.cost}pt</span>
+          fontFamily: 'var(--font-display)', fontSize: '14px',
+          color: canAfford && !isOwned && !isLocked ? 'var(--fifa-blue)' : '#999',
+        }}>{card.cost}PT</span>
       </div>
 
-      {/* Name */}
-      <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px', lineHeight: 1.2 }}>{card.name}</div>
-      <div style={{ fontSize: '10px', color: traitColor, fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>
-        {card.trait}
-      </div>
+      {/* Body */}
+      <div style={{ padding: '10px' }}>
+        {/* Name */}
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', letterSpacing: '1px', lineHeight: 1.1, marginBottom: '6px', color: '#000' }}>
+          {card.name}
+        </div>
 
-      {/* Stats mini-grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '3px', textAlign: 'center' }}>
-        {[['S', card.speed], ['P', card.passing], ['H', card.shooting], ['D', card.defense], ['E', card.stamina]].map(([l, v]) => (
-          <div key={l as string} style={{ backgroundColor: '#07090f', borderRadius: '4px', padding: '3px 0' }}>
-            <div style={{ fontSize: '8px', color: '#5d637f' }}>{l}</div>
-            <div style={{ fontSize: '11px', fontWeight: 700 }}>{v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Overlay icons */}
-      {locked && !owned && (
+        {/* Trait pill */}
         <div style={{
-          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          borderRadius: '10px', backgroundColor: 'rgba(0,0,0,0.3)',
+          display: 'inline-block', border: '2px solid #000',
+          background: trait.bg, color: trait.color,
+          fontFamily: 'var(--font-display)', fontSize: '9px', letterSpacing: '1.5px',
+          padding: '1px 6px', marginBottom: '10px',
         }}>
-          <Lock size={20} color="#ff3b30" />
+          {card.trait.toUpperCase()}
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', textAlign: 'center' }}>
+          {([['S', card.speed], ['P', card.passing], ['H', card.shooting], ['D', card.defense], ['E', card.stamina]] as [string, number][]).map(([l, v]) => (
+            <div key={l} style={{ background: isOwned ? 'rgba(0,166,81,0.12)' : 'var(--bg-alt)', border: '2px solid #000', padding: '3px 0' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '8px', letterSpacing: '1px', color: '#777' }}>{l}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', color: '#000' }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Locked overlay */}
+      {isLocked && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--fifa-red)', border: '3px solid #000', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Lock size={13} strokeWidth={3} color="#fff" />
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '1.5px', color: '#fff' }}>TAKEN</span>
+          </div>
         </div>
       )}
-      {owned && (
-        <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
-          <CheckCircle size={16} color="#00ffcc" />
+
+      {/* Owned — unselect X badge */}
+      {isOwned && (
+        <div style={{
+          position: 'absolute', top: '-10px', right: '-10px',
+          background: 'var(--fifa-red)', border: '3px solid #000', boxShadow: '3px 3px 0 #000',
+          width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', zIndex: 2,
+        }}
+          onClick={e => { e.stopPropagation(); onUnpick(); }}
+        >
+          <X size={13} strokeWidth={4} color="#fff" />
         </div>
       )}
     </div>
   );
 }
 
-export default function DraftStage({ cardPool, mySquad, myPoints, lockedCardIds, timer, opponentAddress, onPickCard }: DraftStageProps) {
+export default function DraftStage({
+  cardPool, mySquad, myPoints, lockedCardIds,
+  timer, opponentAddress, onPickCard, onUnpickCard,
+}: DraftStageProps) {
   const mySquadIds = new Set(mySquad.map(c => c.id));
-  const squadFull = mySquad.length >= 5;
+  const squadFull  = mySquad.length >= 5;
 
-  const timerColor = timer <= 10 ? '#ff3b30' : timer <= 20 ? '#ffaa00' : 'var(--neon-cyan)';
+  const timerColor = timer <= 10 ? 'var(--fifa-red)' : timer <= 20 ? '#C89520' : '#00A651';
+  const timerBg    = timer <= 10 ? '#FFE5E8' : timer <= 20 ? '#FFF8E0' : '#E5F7ED';
+
+  const pointsSpent = mySquad.reduce((a, c) => a + c.cost, 0);
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 20px' }}>
+    <div style={{ maxWidth: '1160px', margin: '0 auto', padding: '28px 20px' }}>
 
-      {/* Header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-manga)', fontSize: '28px', letterSpacing: '2px' }}>STAGE 1 — DRAFT</h2>
-          <p style={{ fontSize: '12px', color: '#8b949e', marginTop: '2px' }}>
-            vs <span style={{ fontFamily: 'monospace', color: '#fff' }}>{opponentAddress.slice(0, 6)}…{opponentAddress.slice(-4)}</span>
-          </p>
+      {/* ── TOP BAR ── */}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', border: '4px solid #000', boxShadow: 'var(--shadow-md)', marginBottom: '24px' }}>
+        {/* Stage label */}
+        <div style={{ background: 'var(--fifa-blue)', padding: '14px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '4px solid #000' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '3px', color: 'rgba(255,255,255,0.6)' }}>STAGE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '22px', letterSpacing: '2px', color: '#fff', lineHeight: 1 }}>01 — DRAFT</div>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '42px', fontWeight: 900, fontFamily: 'monospace', color: timerColor, lineHeight: 1 }}>
+
+        {/* Opponent */}
+        <div style={{ flex: 1, background: '#fff', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderRight: '4px solid #000' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '2px', color: '#555' }}>VS</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 800, color: '#000', wordBreak: 'break-all' }}>
+            {opponentAddress ? `${opponentAddress.slice(0, 8)}…${opponentAddress.slice(-6)}` : 'Waiting for opponent…'}
+          </div>
+        </div>
+
+        {/* Timer */}
+        <div style={{ background: timerBg, padding: '14px 24px', textAlign: 'center', borderRight: '4px solid #000', minWidth: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', transition: 'background 0.3s' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '42px', color: timerColor, lineHeight: 1, transition: 'color 0.3s' }}>
             {String(timer).padStart(2, '0')}
           </div>
-          <div style={{ fontSize: '10px', color: '#5d637f' }}>seconds left</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '2px', color: timerColor, opacity: 0.7 }}>SEC</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '28px', fontWeight: 900, color: 'var(--neon-cyan)' }}>{myPoints}<span style={{ fontSize: '14px', color: '#8b949e' }}>pts</span></div>
-          <div style={{ fontSize: '12px', color: '#8b949e' }}>Squad: {mySquad.length}/5</div>
+
+        {/* Points */}
+        <div style={{ background: '#fff', padding: '14px 24px', textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '120px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '2px', color: '#555' }}>BUDGET</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', color: myPoints <= 2 ? 'var(--fifa-red)' : 'var(--fifa-blue)', lineHeight: 1, transition: 'color 0.2s' }}>
+            {myPoints}<span style={{ fontSize: '14px', color: '#999' }}>PT</span>
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', color: '#999', letterSpacing: '1px' }}>
+            {mySquad.length}/5 PICKED
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>
 
-        {/* Card pool grid */}
+        {/* ── CARD POOL ── */}
         <div>
-          <p style={{ fontSize: '12px', color: '#8b949e', marginBottom: '12px' }}>
-            Pick 5 players — total cost ≤ 10 pts. Locked cards are taken by your opponent.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' }}>
-            {cardPool.map(card => (
-              <CardTile
-                key={card.id}
-                card={card}
-                locked={lockedCardIds.has(card.id) && !mySquadIds.has(card.id)}
-                owned={mySquadIds.has(card.id)}
-                canAfford={myPoints >= card.cost && !squadFull}
-                onPick={() => onPickCard(card.id)}
-              />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <p style={{ fontFamily: 'var(--font-primary)', fontSize: '13px', fontWeight: 700, color: '#555' }}>
+              Pick 5 players · budget ≤ 10 pts · click a picked card to <strong>unselect</strong>
+            </p>
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+              {[['#00A651', 'YOUR PICK'], ['var(--fifa-red)', 'TAKEN']].map(([c, l]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div style={{ width: '10px', height: '10px', background: c, border: '2px solid #000' }} />
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '1px', color: '#555' }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '12px' }}>
+            {cardPool.map(card => {
+              const isOwned  = mySquadIds.has(card.id);
+              const isLocked = lockedCardIds.has(card.id) && !isOwned;
+              const cardState: 'owned' | 'locked' | 'available' = isOwned ? 'owned' : isLocked ? 'locked' : 'available';
+
+              return (
+                <CardTile
+                  key={card.id}
+                  card={card}
+                  state={cardState}
+                  canAfford={myPoints >= card.cost && !squadFull && !isOwned}
+                  onPick={() => onPickCard(card.id)}
+                  onUnpick={() => onUnpickCard?.(card.id)}
+                />
+              );
+            })}
           </div>
         </div>
 
-        {/* My squad panel */}
-        <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: 'fit-content' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Zap size={16} style={{ color: 'var(--monad-purple)' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Your Squad</h3>
+        {/* ── MY SQUAD PANEL ── */}
+        <div style={{ position: 'sticky', top: '16px', display: 'flex', flexDirection: 'column', gap: '0', border: '4px solid #000', boxShadow: 'var(--shadow-md)' }}>
+          {/* Header */}
+          <div style={{ background: 'var(--fifa-blue)', borderBottom: '4px solid #000', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: 'var(--fifa-gold-light)', border: '2px solid #000', padding: '4px', display: 'flex' }}>
+              <Zap size={14} strokeWidth={3} color="#000" />
+            </div>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '18px', letterSpacing: '2px', color: '#fff' }}>YOUR SQUAD</span>
           </div>
 
-          {mySquad.length === 0 ? (
-            <p style={{ fontSize: '12px', color: '#5d637f', textAlign: 'center', padding: '20px 0' }}>
-              No cards picked yet
-            </p>
-          ) : (
-            mySquad.map(card => (
-              <div key={card.id} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                backgroundColor: '#07090f', padding: '10px 12px', borderRadius: '8px',
-                borderLeft: `4px solid ${TIER_COLORS[card.tier]}`,
-              }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700 }}>{card.name}</div>
-                  <div style={{ fontSize: '10px', color: TRAIT_COLORS[card.trait], textTransform: 'uppercase' }}>{card.trait}</div>
-                </div>
-                <span style={{ fontSize: '11px', color: '#5d637f' }}>{card.cost}pt</span>
-              </div>
-            ))
-          )}
-
-          {squadFull && (
-            <div style={{
-              textAlign: 'center', padding: '10px',
-              backgroundColor: 'rgba(0,255,200,0.08)',
-              border: '1px solid rgba(0,255,200,0.2)', borderRadius: '8px',
-              fontSize: '13px', color: '#00ffcc', fontWeight: 700,
-            }}>
-              ✓ Squad Full — Waiting for timer
+          {/* Budget bar */}
+          <div style={{ background: '#fff', borderBottom: '3px solid #000', padding: '10px 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '1.5px', color: '#555' }}>POINTS SPENT</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', color: '#000' }}>{pointsSpent} / 10</span>
             </div>
-          )}
+            <div style={{ height: '8px', background: '#e5e7eb', border: '2px solid #000' }}>
+              <div style={{
+                height: '100%',
+                width: `${(pointsSpent / 10) * 100}%`,
+                background: pointsSpent >= 9 ? 'var(--fifa-red)' : 'var(--fifa-blue)',
+                transition: 'width 0.2s ease, background 0.2s ease',
+              }} />
+            </div>
+          </div>
+
+          {/* Slots */}
+          <div style={{ background: '#fff' }}>
+            {[0, 1, 2, 3, 4].map(i => {
+              const card = mySquad[i];
+              const tier = card ? (TIER_META[card.tier] ?? TIER_META.Common) : null;
+              const trait = card ? (TRAIT_META[card.trait] ?? { color: '#000', bg: '#f5f5f5' }) : null;
+
+              return (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: '0',
+                  borderBottom: i < 4 ? '3px solid #000' : undefined,
+                  minHeight: '56px',
+                }}>
+                  {/* Slot number */}
+                  <div style={{
+                    width: '40px', background: card ? 'var(--fifa-blue)' : 'var(--bg-alt)',
+                    borderRight: '3px solid #000', alignSelf: 'stretch',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--font-display)', fontSize: '16px', color: card ? '#fff' : '#ccc',
+                    flexShrink: 0,
+                  }}>
+                    {i + 1}
+                  </div>
+
+                  {card ? (
+                    <div style={{ flex: 1, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', letterSpacing: '0.5px', color: '#000' }}>{card.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', color: '#555' }}>{card.cost}PT</span>
+                          {/* Unselect button */}
+                          <button
+                            onClick={() => onUnpickCard?.(card.id)}
+                            style={{
+                              background: 'var(--fifa-red)', border: '2px solid #000', padding: '2px 5px',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center',
+                              boxShadow: '2px 2px 0 #000',
+                            }}
+                            title="Remove from squad"
+                          >
+                            <X size={11} strokeWidth={4} color="#fff" />
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ background: tier!.bg, border: `2px solid ${tier!.color}`, padding: '0px 5px', fontFamily: 'var(--font-display)', fontSize: '8px', letterSpacing: '1px', color: tier!.color }}>{tier!.label}</div>
+                        <div style={{ background: trait!.bg, border: `2px solid ${trait!.color}`, padding: '0px 5px', fontFamily: 'var(--font-display)', fontSize: '8px', letterSpacing: '1px', color: trait!.color }}>{card.trait.toUpperCase()}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1, padding: '8px 12px', display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '1.5px', color: '#ccc' }}>EMPTY SLOT</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Status footer */}
+          <div style={{
+            background: squadFull ? '#E5F7ED' : 'var(--bg-alt)',
+            borderTop: '4px solid #000', padding: '12px 16px', textAlign: 'center',
+            transition: 'background 0.2s',
+          }}>
+            {squadFull ? (
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', letterSpacing: '2px', color: '#00A651' }}>
+                ✓ SQUAD FULL — AWAITING TIMER
+              </div>
+            ) : (
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '1.5px', color: '#555' }}>
+                PICK {5 - mySquad.length} MORE PLAYER{5 - mySquad.length !== 1 ? 'S' : ''}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

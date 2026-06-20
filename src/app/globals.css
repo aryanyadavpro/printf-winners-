@@ -1,124 +1,116 @@
-/* --- NEO-BRUTALISM & FIFA 2026 LIGHT DESIGN SYSTEM --- */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;800&family=Permanent+Marker&display=swap');
+/* --- FIFA BRAND KIT × NEO-BRUTALISM DESIGN SYSTEM --- */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;800&family=Permanent+Marker&family=Space+Grotesk:wght@400;500;700;900&display=swap');
 
 :root {
-  /* FIFA 2026 Saturated Colors */
-  --fifa-green: #00FF66;
-  --fifa-green-text: #008F3A;
-  --fifa-gold: #FFEA00;
-  --fifa-red: #FF0055;
-  --fifa-blue: #0066FF;
-  
-  /* Brutalist Light Theme */
-  --bg-darker: #F5F4F0; /* Soft warm paper cream */
-  --bg-dark: #E6E4DC;
-  --bg-card: #FFFFFF; /* Stark white cards */
-  --border-black: #000000;
-  
-  /* Trait Colors (Neo-Brutalist Saturated) */
-  --color-arrogant: #FF0055;
-  --color-calculative: #00E1D9; /* Saturated teal */
-  --color-panic: #7D8899;
-  --color-maverick: #D500FF;
-  --color-team: #0066FF;
+  /* ── FIFA Official Brand Colors ── */
+  --fifa-blue:        #0033A0;   /* FIFA Primary Blue */
+  --fifa-blue-dark:   #001F6B;   /* Pressed / deep blue */
+  --fifa-blue-light:  #1A4DB5;   /* Hover blue */
+  --fifa-gold:        #C89520;   /* FIFA Gold */
+  --fifa-gold-light:  #FFD700;   /* Vivid highlight gold */
+  --fifa-red:         #E8001D;   /* FIFA Red (accent) */
+  --fifa-white:       #FFFFFF;
+  --fifa-cream:       #FFFDF5;   /* Canvas / paper */
 
-  --font-primary: 'Outfit', sans-serif;
-  --font-manga: 'Bebas Neue', sans-serif;
-  --font-bubble: 'Permanent Marker', cursive;
+  /* ── Neo-Brutalist Structure ── */
+  --bg-page:          #FFFDF5;
+  --bg-card:          #FFFFFF;
+  --bg-alt:           #EEF1FA;   /* Soft blue-tinted panel */
+  --border-black:     #000000;
+  --ink:              #000000;
+
+  /* ── Trait Colors (high-sat) ── */
+  --color-arrogant:   #E8001D;   /* FIFA Red */
+  --color-calculative:#0033A0;   /* FIFA Blue */
+  --color-panic:      #7D8899;
+  --color-maverick:   #C89520;   /* FIFA Gold */
+  --color-team:       #00A651;   /* FIFA Green */
+
+  /* ── Typography ── */
+  --font-primary:  'Space Grotesk', 'Outfit', sans-serif;
+  --font-display:  'Bebas Neue', sans-serif;
+  --font-bubble:   'Permanent Marker', cursive;
+
+  /* ── Shadows (hard offset, zero blur) ── */
+  --shadow-sm:   4px  4px  0px 0px #000;
+  --shadow-md:   8px  8px  0px 0px #000;
+  --shadow-lg:   12px 12px 0px 0px #000;
+  --shadow-xl:   16px 16px 0px 0px #000;
+  --shadow-blue: 8px  8px  0px 0px var(--fifa-blue);
+  --shadow-gold: 8px  8px  0px 0px var(--fifa-gold);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Body: cream canvas + halftone dots ── */
 body {
-  background-color: var(--bg-darker);
-  color: #000000; /* Solid black body text */
+  background-color: var(--bg-page);
+  color: var(--ink);
   font-family: var(--font-primary);
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
-  /* Neo-brutalist light grid pattern */
-  background-image: 
-    linear-gradient(rgba(0, 0, 0, 0.03) 1.5px, transparent 1.5px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1.5px, transparent 1.5px);
-  background-size: 40px 40px;
+  background-image:
+    radial-gradient(circle, rgba(0,51,160,0.06) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-darker);
-  border-left: 3px solid var(--border-black);
-}
-::-webkit-scrollbar-thumb {
-  background: #C4C2BA;
-  border: 2px solid var(--border-black);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--fifa-green);
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-page); border-left: 3px solid #000; }
+::-webkit-scrollbar-thumb { background: #C4C2BA; border: 2px solid #000; }
+::-webkit-scrollbar-thumb:hover { background: var(--fifa-blue); }
 
-/* --- NEO-BRUTALIST STYLING FOR EXISTING HTML CLASSES --- */
-
-/* Overwriting glass-panel to behave like a Neo-brutalist Container */
+/* ════════════════════════════════════════════
+   CORE PANEL / CARD
+════════════════════════════════════════════ */
 .glass-panel {
   background: var(--bg-card);
-  color: #000000 !important; /* Force black text */
-  border: 4px solid var(--border-black);
-  border-radius: 0px !important; /* Sharp brutalist corners */
+  color: #000 !important;
+  border: 4px solid #000;
+  border-radius: 0 !important;
   padding: 24px;
-  box-shadow: 8px 8px 0px var(--border-black) !important;
+  box-shadow: var(--shadow-md) !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   position: relative;
 }
 .glass-panel:hover {
   transform: translate(-3px, -3px);
-  box-shadow: 11px 11px 0px var(--border-black) !important;
+  box-shadow: 11px 11px 0px #000 !important;
 }
 
-/* Glow / Trait Specific Brutalist Borders */
-.glow-purple {
-  border: 4px solid var(--color-maverick) !important;
-  box-shadow: 8px 8px 0px var(--border-black) !important;
-}
-.glow-cyan {
-  border: 4px solid var(--color-calculative) !important;
-  box-shadow: 8px 8px 0px var(--border-black) !important;
-}
+/* ════════════════════════════════════════════
+   BUTTONS
+════════════════════════════════════════════ */
 
-/* Neo-brutalist flat primary buttons (Vivid Green) */
+/* Primary — FIFA Blue */
 .btn-primary {
-  background: var(--fifa-green);
-  color: #000000 !important;
-  border: 4px solid var(--border-black) !important;
+  background: var(--fifa-blue);
+  color: #fff !important;
+  border: 4px solid #000 !important;
   padding: 12px 24px;
-  font-family: var(--font-manga);
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 900;
-  border-radius: 0px !important; /* Sharp corners */
+  border-radius: 0 !important;
   cursor: pointer;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 4px 4px 0px var(--border-black) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
+  background: var(--fifa-blue-light);
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px var(--border-black) !important;
-  background: #00e65c;
+  box-shadow: 6px 6px 0px #000 !important;
 }
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px var(--border-black) !important;
+  box-shadow: 2px 2px 0px #000 !important;
 }
 .btn-primary:disabled {
   background: #d4d6e0 !important;
@@ -126,34 +118,37 @@ body {
   box-shadow: none !important;
   cursor: not-allowed;
   transform: none !important;
-  border-color: #777d91 !important;
+  border-color: #999 !important;
 }
 
-/* Neo-brutalist secondary buttons (Saturated Gold) */
+/* Secondary — FIFA Gold */
 .btn-secondary {
-  background: var(--fifa-gold);
-  color: #000000 !important;
-  border: 4px solid var(--border-black) !important;
+  background: var(--fifa-gold-light);
+  color: #000 !important;
+  border: 4px solid #000 !important;
   padding: 12px 24px;
-  font-family: var(--font-manga);
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 900;
-  border-radius: 0px !important;
+  border-radius: 0 !important;
   cursor: pointer;
-  box-shadow: 4px 4px 0px var(--border-black) !important;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  box-shadow: var(--shadow-sm) !important;
 }
 .btn-secondary:hover:not(:disabled) {
-  background: #ffd200;
+  background: var(--fifa-gold);
+  color: #fff !important;
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px var(--border-black) !important;
+  box-shadow: 6px 6px 0px #000 !important;
 }
 .btn-secondary:active:not(:disabled) {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px var(--border-black) !important;
+  box-shadow: 2px 2px 0px #000 !important;
 }
 .btn-secondary:disabled {
   background: #e6e5df !important;
@@ -161,159 +156,248 @@ body {
   box-shadow: none !important;
   cursor: not-allowed;
   transform: none !important;
-  border-color: #888888 !important;
+  border-color: #888 !important;
 }
 
-/* --- MANGA ANIMATIONS & BREAKOUT STYLES --- */
+/* Danger — FIFA Red */
+.btn-danger {
+  background: var(--fifa-red);
+  color: #fff !important;
+  border: 4px solid #000 !important;
+  padding: 12px 24px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  border-radius: 0 !important;
+  cursor: pointer;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm) !important;
+}
+.btn-danger:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #000 !important;
+}
+.btn-danger:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #000 !important;
+}
 
-/* Speedlines Overlay background */
+/* ════════════════════════════════════════════
+   NAV TAB BAR
+════════════════════════════════════════════ */
+.nav-tab {
+  padding: 10px 28px;
+  border: 3px solid #000;
+  background: var(--bg-card);
+  color: #000;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  box-shadow: var(--shadow-sm);
+  border-radius: 0;
+}
+.nav-tab:hover:not(.nav-tab--active) {
+  background: var(--bg-alt);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #000;
+}
+.nav-tab--active {
+  background: var(--fifa-blue);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  transform: none;
+}
+
+/* ════════════════════════════════════════════
+   STAT BADGE
+════════════════════════════════════════════ */
+.stat-badge {
+  background: var(--bg-alt);
+  border: 3px solid #000;
+  padding: 8px 6px;
+  text-align: center;
+  box-shadow: 3px 3px 0px #000;
+}
+.stat-badge__label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #555;
+  margin-bottom: 3px;
+}
+.stat-badge__value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: #000;
+  line-height: 1;
+}
+
+/* ════════════════════════════════════════════
+   TRAIT PILL
+════════════════════════════════════════════ */
+.trait-pill {
+  display: inline-block;
+  border: 3px solid #000;
+  padding: 3px 10px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 900;
+  box-shadow: 3px 3px 0px #000;
+}
+
+/* ════════════════════════════════════════════
+   TRAIT-SPECIFIC BORDERS / ACCENTS
+════════════════════════════════════════════ */
+.glow-purple  { border: 4px solid var(--color-maverick) !important; box-shadow: var(--shadow-md) !important; }
+.glow-cyan    { border: 4px solid var(--color-calculative) !important; box-shadow: var(--shadow-md) !important; }
+
+/* ════════════════════════════════════════════
+   MANGA / IN-GAME OVERLAYS
+════════════════════════════════════════════ */
 .speedlines-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, transparent 35%, rgba(0, 0, 0, 0.95) 85%);
-  overflow: hidden;
-  z-index: 1;
-  pointer-events: none;
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(circle, transparent 35%, rgba(0,0,0,0.95) 85%);
+  overflow: hidden; z-index: 1; pointer-events: none;
 }
 .speedlines-bg::before {
   content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
   background: repeating-radial-gradient(
-    circle,
-    transparent,
-    transparent 4px,
-    rgba(255, 255, 255, 0.15) 5px,
-    rgba(255, 255, 255, 0.15) 8px
+    circle, transparent, transparent 4px,
+    rgba(255,255,255,0.15) 5px, rgba(255,255,255,0.15) 8px
   );
   animation: rotate-lines 1.5s linear infinite;
 }
 
 @keyframes rotate-lines {
-  0% { transform: rotate(0deg); }
+  0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Screen shake effect on main simulator during shot */
-.screen-shake {
-  animation: shake 0.35s ease-in-out infinite;
-}
-
+.screen-shake { animation: shake 0.35s ease-in-out infinite; }
 @keyframes shake {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  20% { transform: translate(-4px, 4px) rotate(-1deg); }
-  40% { transform: translate(-4px, -4px) rotate(1deg); }
-  60% { transform: translate(4px, 4px) rotate(0deg); }
-  80% { transform: translate(4px, -4px) rotate(1deg); }
+  0%, 100% { transform: translate(0,0) rotate(0deg); }
+  20%       { transform: translate(-4px, 4px) rotate(-1deg); }
+  40%       { transform: translate(-4px,-4px) rotate(1deg); }
+  60%       { transform: translate(4px, 4px) rotate(0deg); }
+  80%       { transform: translate(4px,-4px) rotate(1deg); }
 }
 
-/* --- IN-GAME Floating Speech Bubble --- */
+/* ── Speech Bubble ── */
 .ingame-speech-bubble {
   position: relative;
-  background: #ffffff;
-  color: #000000;
-  border: 3px solid #000000;
-  padding: 8px 14px;
-  border-radius: 0px !important; /* Sharp brutalist thought bubble */
-  font-family: var(--font-primary);
-  font-weight: 800;
-  font-size: 13px;
-  line-height: 1.3;
-  width: max-content;
-  max-width: 220px;
-  text-align: center;
-  pointer-events: none;
+  background: #fff; color: #000;
+  border: 3px solid #000;
+  padding: 8px 14px; border-radius: 0 !important;
+  font-family: var(--font-primary); font-weight: 800; font-size: 13px;
+  line-height: 1.3; width: max-content; max-width: 220px;
+  text-align: center; pointer-events: none;
   animation: bubble-pop-mini 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  z-index: 100;
-  white-space: normal;
-  word-wrap: break-word;
+  z-index: 100; white-space: normal; word-wrap: break-word;
+  box-shadow: 4px 4px 0px #000;
 }
-
 .ingame-speech-bubble::after {
-  content: "";
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
+  content: ""; position: absolute; bottom: -10px; left: 50%;
   transform: translateX(-50%);
-  border-width: 10px 7px 0;
-  border-style: solid;
-  border-color: #ffffff transparent;
-  display: block;
-  width: 0;
+  border-width: 10px 7px 0; border-style: solid;
+  border-color: #fff transparent; display: block; width: 0;
 }
-
 .ingame-speech-bubble::before {
-  content: "";
-  position: absolute;
-  bottom: -14px;
-  left: 50%;
+  content: ""; position: absolute; bottom: -14px; left: 50%;
   transform: translateX(-50%);
-  border-width: 13px 10px 0;
-  border-style: solid;
-  border-color: #000000 transparent;
-  display: block;
-  width: 0;
-  z-index: -1;
+  border-width: 13px 10px 0; border-style: solid;
+  border-color: #000 transparent; display: block; width: 0; z-index: -1;
 }
 
 @keyframes bubble-pop-mini {
-  0% { opacity: 0; transform: scale(0.6) translateY(8px); }
+  0%   { opacity: 0; transform: scale(0.6) translateY(8px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* --- Mini Manga Corner Panel --- */
+/* ── Mini Manga Panel ── */
 .mini-manga-panel {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  width: 265px;
-  height: 80px;
-  background: #ffffff;
-  border: 3px solid #000000;
-  box-shadow: 4px 4px 0px #000000;
-  display: flex;
-  overflow: hidden;
-  z-index: 80;
-  pointer-events: none;
-  border-radius: 0px !important;
+  position: absolute; bottom: 16px; left: 16px;
+  width: 265px; height: 80px;
+  background: #fff; border: 3px solid #000;
+  box-shadow: 4px 4px 0px #000;
+  display: flex; overflow: hidden;
+  z-index: 80; pointer-events: none; border-radius: 0 !important;
   animation: slide-in-mini 0.3s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
-
 @keyframes slide-in-mini {
-  0% { transform: translateX(-120%); }
+  0%   { transform: translateX(-120%); }
   100% { transform: translateX(0); }
 }
-
 .mini-manga-slice-left {
-  position: relative;
-  width: 32%;
-  height: 100%;
-  background: #000000;
+  position: relative; width: 32%; height: 100%;
+  background: var(--fifa-blue);
   clip-path: polygon(0 0, 100% 0, 75% 100%, 0 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
+  display: flex; justify-content: center; align-items: center; overflow: hidden;
 }
-
 .mini-manga-slice-right {
-  width: 68%;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: left;
+  width: 68%; padding: 8px 12px;
+  display: flex; flex-direction: column; justify-content: center; text-align: left;
 }
 
-/* Aura Glow Filters */
-.glow-aura-arrogant { filter: drop-shadow(0 0 15px var(--color-arrogant)); }
+/* ── Aura Glows ── */
+.glow-aura-arrogant    { filter: drop-shadow(0 0 15px var(--color-arrogant)); }
 .glow-aura-calculative { filter: drop-shadow(0 0 15px var(--color-calculative)); }
-.glow-aura-panic { filter: drop-shadow(0 0 15px var(--color-panic)); }
-.glow-aura-maverick { filter: drop-shadow(0 0 15px var(--color-maverick)); }
-.glow-aura-team { filter: drop-shadow(0 0 15px var(--color-team)); }
+.glow-aura-panic       { filter: drop-shadow(0 0 15px var(--color-panic)); }
+.glow-aura-maverick    { filter: drop-shadow(0 0 15px var(--color-maverick)); }
+.glow-aura-team        { filter: drop-shadow(0 0 15px var(--color-team)); }
+
+/* ════════════════════════════════════════════
+   SECTION DIVIDER
+════════════════════════════════════════════ */
+.divider-stripe {
+  height: 6px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--fifa-blue)  0px,
+    var(--fifa-blue)  60px,
+    var(--fifa-gold-light) 60px,
+    var(--fifa-gold-light) 120px,
+    var(--fifa-red)   120px,
+    var(--fifa-red)   180px,
+    #000               180px,
+    #000               186px
+  );
+  border-top: 4px solid #000;
+  border-bottom: 4px solid #000;
+}
+
+/* ════════════════════════════════════════════
+   STAT BAR (for shop cards)
+════════════════════════════════════════════ */
+.stat-bar-track {
+  height: 8px;
+  background: #e5e7eb;
+  border: 2px solid #000;
+  position: relative;
+  overflow: visible;
+}
+.stat-bar-fill {
+  height: 100%;
+  background: var(--fifa-blue);
+  transition: width 0.3s ease;
+}
+
+/* ════════════════════════════════════════════
+   MOTION (reduced-motion safe)
+════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin, .animate-bounce, .animate-pulse,
+  .speedlines-bg::before { animation: none !important; }
+}
