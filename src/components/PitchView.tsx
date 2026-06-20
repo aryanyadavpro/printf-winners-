@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
 import { Player, Ball, MatchState, MangaEvent, PersonaTrait } from '../types/game';
-import { runMatchTick, resetToKickoff } from '../utils/matchEngine';
+import { runMatchTick, resetToKickoff, AgentDecisionContext } from '../utils/matchEngine';
 import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } from '../utils/physics';
 import { updatePlayerStatsOnChain } from '../utils/web3';
 import MangaOverlay from './MangaOverlay';
@@ -33,6 +33,24 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
 
   const initializedRef = useRef(false);
   const hostEmitIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Claude Haiku agent decision system
+  const agentDecisionCache = useRef<Map<string, string>>(new Map());
+  const pendingRequests = useRef<Set<string>>(new Set());
+
+  const requestAgentDecision = (playerId: string, ctx: AgentDecisionContext) => {
+    if (pendingRequests.current.has(playerId)) return; // already waiting for this player
+    pendingRequests.current.add(playerId);
+    fetch('/api/agent-decision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx),
+    })
+      .then(r => r.json())
+      .then(({ decision }) => { agentDecisionCache.current.set(playerId, decision); })
+      .catch(() => { agentDecisionCache.current.set(playerId, 'dribble'); })
+      .finally(() => { pendingRequests.current.delete(playerId); });
+  };
 
   const SLOT_ROLES = ['GK','LB','CB1','CB2','RB','CDM','CM1','CM2','LW','ST','RW'];
 
@@ -135,7 +153,12 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
         // Run ticks according to simulation speed setting (1x, 2x, etc.)
         let tempState = { ...prevState };
         
-        tempState = runMatchTick(tempState, handleMangaEventTrigger);
+        tempState = runMatchTick(
+          tempState,
+          handleMangaEventTrigger,
+          requestAgentDecision,
+          agentDecisionCache.current
+        );
 
         return tempState;
       });

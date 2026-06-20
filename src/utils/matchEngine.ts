@@ -202,10 +202,21 @@ export function getGoalProbability(player: Player, goalX: number): number {
   return clamp(prob, 0.05, 0.95);
 }
 
+export interface AgentDecisionContext {
+  playerName: string; trait: string; position: string;
+  speed: number; shooting: number; passing: number; stamina: number;
+  distToGoal: number; nearestOppDist: number;
+  score: string; timeLeft: number;
+  currentStamina: number;
+  openTeammates: { name: string; dist: number }[];
+}
+
 // Run one simulation tick
 export function runMatchTick(
   state: MatchState,
-  mangaTriggerCallback: (event: MangaEvent) => void
+  mangaTriggerCallback: (event: MangaEvent) => void,
+  requestAgentDecision?: (playerId: string, ctx: AgentDecisionContext) => void,
+  agentDecisionCache?: Map<string, string>
 ): MatchState {
   if (!state.isPlaying || state.isMangaPaused) return state;
 
@@ -330,6 +341,40 @@ export function runMatchTick(
 
         const goalDist = getDistance(player.x, player.y, opponentGoalX, FIELD_HEIGHT / 2);
         const goalProb = getGoalProbability(player, opponentGoalX);
+
+        // ── Claude Haiku agent decision ───────────────────────────────────────
+        const cachedDecision = agentDecisionCache?.get(player.id);
+        if (cachedDecision) {
+          agentDecisionCache!.delete(player.id);
+          const teammates = players.filter(t => t.side === player.side && t.id !== player.id && !t.hasBall);
+          if (cachedDecision === 'shoot') {
+            if (goalProb > 0.70) {
+              const event: MangaEvent = { id: generateId(), type: 'clutch_shot', player: { ...player }, goalProbability: Math.floor(goalProb * 100), timestamp: new Date().toLocaleTimeString() };
+              mangaTriggerCallback(event); state.currentMangaEvent = event;
+            }
+            shootBall(ball, player, opponentGoalX, FIELD_HEIGHT / 2 + (Math.random() * 60 - 30), 12 + (player.shooting / 25));
+          } else if (cachedDecision === 'pass' && teammates.length > 0) {
+            const target = [...teammates].sort((a,b) => getDistance(a.x,a.y,opponentGoalX,FIELD_HEIGHT/2) - getDistance(b.x,b.y,opponentGoalX,FIELD_HEIGHT/2))[0];
+            passBall(ball, player, target);
+          }
+          // dribble: fall through to default forward run
+        } else if (requestAgentDecision) {
+          // No cached decision yet — fire async request, use rule-based weights as fallback this tick
+          const openTeammates = players
+            .filter(t => t.side === player.side && t.id !== player.id)
+            .map(t => ({ name: t.name, dist: getDistance(player.x, player.y, t.x, t.y) }))
+            .filter(t => t.dist < 200)
+            .slice(0, 3);
+          requestAgentDecision(player.id, {
+            playerName: player.name, trait: player.trait, position: player.position ?? role,
+            speed: player.speed, shooting: player.shooting, passing: player.passing, stamina: player.stamina,
+            distToGoal: goalDist, nearestOppDist,
+            score: `${state.scoreRed}-${state.scoreBlue}`,
+            timeLeft: Math.round(state.timeRemaining),
+            currentStamina: player.currentStamina,
+            openTeammates,
+          });
+        }
 
         // Base Decision weights (in %)
         let passWeight = 30;
