@@ -7,8 +7,8 @@ import Shop from '../components/Shop';
 import { Player } from '../types/game';
 
 // Update these after deploying your contracts
-const NFT_CONTRACT_ADDRESS = '0x9aE7A8A31D0cf6c429c629532822a1017c603b55';
-const MARKETPLACE_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // replace after deploy
+const NFT_CONTRACT_ADDRESS = '0xed41C47315306e8fE56A330D1e938b257FAC7aE5';
+const MARKETPLACE_CONTRACT_ADDRESS = '0x414D4901abaF7d100a79D5ee10316BCe3037d9C3';
 
 type View = 'dashboard' | 'pitch' | 'shop';
 

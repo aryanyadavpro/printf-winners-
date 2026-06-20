@@ -22,7 +22,7 @@ interface DashboardProps {
 export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) {
   // Wallet state
   const [walletAddress, setWalletAddress] = useState<string>('');
-  const [contractAddress, setContractAddress] = useState<string>('0x9aE7A8A31D0cf6c429c629532822a1017c603b55'); // Example address
+  const [contractAddress, setContractAddress] = useState<string>('0xed41C47315306e8fE56A330D1e938b257FAC7aE5');
   const [provider, setProvider] = useState<BrowserProvider | null>(null);
   const [isMMInstalled, setIsMMInstalled] = useState<boolean>(false);
   const [web3Connected, setWeb3Connected] = useState<boolean>(false);

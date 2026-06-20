@@ -204,13 +204,18 @@ export async function fetchActiveListings(
   provider: BrowserProvider,
   marketplaceAddress: string
 ): Promise<MarketplaceListing[]> {
-  const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
-  const [tokenIds, sellers, prices] = await marketplace.getActiveListings();
-  return (tokenIds as bigint[]).map((tid, i) => ({
-    tokenId: Number(tid),
-    seller: sellers[i] as string,
-    price: prices[i] as bigint
-  }));
+  try {
+    const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
+    const [tokenIds, sellers, prices] = await marketplace.getActiveListings();
+    if (!tokenIds || (tokenIds as bigint[]).length === 0) return [];
+    return (tokenIds as bigint[]).map((tid, i) => ({
+      tokenId: Number(tid),
+      seller: sellers[i] as string,
+      price: prices[i] as bigint
+    }));
+  } catch {
+    return [];
+  }
 }
 
 // ─── Local mock storage for sandbox testing ───────────────────────────────────

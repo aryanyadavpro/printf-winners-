@@ -147,8 +147,8 @@ export default function Shop({ nftContractAddress, marketplaceAddress }: ShopPro
         await new Promise((r) => setTimeout(r, 500));
         setListings(MOCK_SHOP_LISTINGS);
       }
-    } catch (e: any) {
-      alert(e.message || 'Failed to load listings.');
+    } catch {
+      // silently show empty shop if contract call fails
     } finally {
       setIsLoading(false);
     }
