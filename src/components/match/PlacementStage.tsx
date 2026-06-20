@@ -4,14 +4,19 @@ import React, { useState } from 'react';
 import { DraftCard, Formation, TIER_COLORS, TRAIT_COLORS } from '../../types/match';
 import { CheckCircle, Lock } from 'lucide-react';
 
-// Slot positions within the player's half (y=0 = center line/top, y=1 = own goal/bottom)
-// Layout: FW top → LM + RM wide middle → CB center-low → GK bottom
+// 4-3-3 formation slots on the half-pitch (y=0 = center line, y=1 = own goal)
 const HALF_SLOTS: { x: number; y: number; label: string }[] = [
-  { x: 0.50, y: 0.88, label: 'GK' },  // goalkeeper near own goal
-  { x: 0.25, y: 0.62, label: 'LB' },  // left back
-  { x: 0.75, y: 0.62, label: 'RB' },  // right back
-  { x: 0.50, y: 0.38, label: 'CDM' }, // central defensive mid
-  { x: 0.50, y: 0.13, label: 'ST' },  // striker near center line
+  { x: 0.50, y: 0.09, label: 'ST'  },
+  { x: 0.15, y: 0.21, label: 'LW'  },
+  { x: 0.85, y: 0.21, label: 'RW'  },
+  { x: 0.28, y: 0.38, label: 'CM1' },
+  { x: 0.50, y: 0.40, label: 'CDM' },
+  { x: 0.72, y: 0.38, label: 'CM2' },
+  { x: 0.12, y: 0.60, label: 'LB'  },
+  { x: 0.36, y: 0.66, label: 'CB1' },
+  { x: 0.64, y: 0.66, label: 'CB2' },
+  { x: 0.88, y: 0.60, label: 'RB'  },
+  { x: 0.50, y: 0.88, label: 'GK'  },
 ];
 
 interface PlacementStageProps {
@@ -27,7 +32,7 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
 
   const placedIds = new Set(Object.values(formation).map(c => c.id));
   const unplaced = mySquad.filter(c => !placedIds.has(c.id));
-  const allPlaced = Object.keys(formation).length === mySquad.length && mySquad.length === 5;
+  const allPlaced = Object.keys(formation).length === mySquad.length && mySquad.length === 11;
 
   const timerColor = timer <= 10 ? '#e8001d' : timer <= 20 ? '#ffaa00' : '#00a651';
   const timerBg   = timer <= 10 ? '#FFE5E8' : timer <= 20 ? '#FFF8E0' : '#E5F7ED';

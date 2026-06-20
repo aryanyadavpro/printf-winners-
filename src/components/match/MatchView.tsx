@@ -51,7 +51,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
   const [opponentAddress, setOpponentAddress] = useState('');
   const [cardPool, setCardPool] = useState<DraftCard[]>([]);
   const [mySquad, setMySquad] = useState<DraftCard[]>([]);
-  const [myPoints, setMyPoints] = useState(10);
+  const [myPoints, setMyPoints] = useState(20);
   const [myFormation, setMyFormation] = useState<Formation>({});
   const [formationSubmitted, setFormationSubmitted] = useState(false);
   const [timer, setTimer] = useState(60);
@@ -246,7 +246,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     setOpponentAddress('');
     setCardPool([]);
     setMySquad([]);
-    setMyPoints(10);
+    setMyPoints(20);
     setMyFormation({});
     setFormationSubmitted(false);
     setResult(null);

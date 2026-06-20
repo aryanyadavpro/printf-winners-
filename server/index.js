@@ -59,18 +59,33 @@ function getEscrowContract() {
   return new ethers.Contract(process.env.ESCROW_ADDRESS, ESCROW_ABI, signer);
 }
 
-// ── Card pool — stats sourced from match data reference ───────────────────────
+// ── Card pool (22 players — pick 11 for budget 20pt) ─────────────────────────
 const CARD_POOL = [
-  { id: 'c1',  name: 'Cristiano Ronaldo', image: '/images/ronaldo.jpg', role: 'ST',  tier: 'Epic',   cost: 4, speed: 88, passing: 75, shooting: 95, defense: 35, stamina: 90, trait: 'Arrogant'    },
-  { id: 'c2',  name: 'Lionel Messi',      image: '/images/messi.jpg',   role: 'CAM', tier: 'Epic',   cost: 4, speed: 82, passing: 96, shooting: 92, defense: 40, stamina: 80, trait: 'Calculative'  },
-  { id: 'c3',  name: 'Erling Haaland',   image: '/images/erling.jpg',  role: 'ST',  tier: 'Rare',   cost: 3, speed: 89, passing: 65, shooting: 94, defense: 38, stamina: 87, trait: 'Arrogant'    },
-  { id: 'c4',  name: 'Kylian Mbappé',    image: '/images/mbappe.jpg',  role: 'RW',  tier: 'Rare',   cost: 3, speed: 97, passing: 80, shooting: 89, defense: 32, stamina: 86, trait: 'Maverick'    },
-  { id: 'c5',  name: 'Kevin De Bruyne',  image: '/images/kevin.jpg',   role: 'CM',  tier: 'Rare',   cost: 3, speed: 76, passing: 95, shooting: 86, defense: 62, stamina: 84, trait: 'Calculative'  },
-  { id: 'c6',  name: 'Neymar Jr',        image: '/images/neymar.jpg',  role: 'LW',  tier: 'Common', cost: 2, speed: 87, passing: 86, shooting: 85, defense: 30, stamina: 78, trait: 'Maverick'    },
-  { id: 'c7',  name: 'Luka Modrić',      image: '/images/luka.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 74, passing: 91, shooting: 78, defense: 70, stamina: 85, trait: 'Team-First'  },
-  { id: 'c8',  name: 'Jude Bellingham',  image: '/images/jude.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 80, passing: 85, shooting: 84, defense: 78, stamina: 92, trait: 'Team-First'  },
-  { id: 'c9',  name: 'Virgil van Dijk',  image: '/images/van.jpg',     role: 'CB',  tier: 'Common', cost: 1, speed: 78, passing: 80, shooting: 60, defense: 94, stamina: 88, trait: 'Calculative'  },
-  { id: 'c10', name: 'Sergio Ramos',     image: '/images/sergio.jpg',  role: 'CB',  tier: 'Common', cost: 1, speed: 72, passing: 75, shooting: 68, defense: 88, stamina: 70, trait: 'Panic-Prone'  },
+  // ── Stars (3pt) ──
+  { id: 'c1',  name: 'Cristiano Ronaldo',     image: '/images/ronaldo.jpg', role: 'ST',  tier: 'Rare',   cost: 3, speed: 88, passing: 75, shooting: 95, defense: 35, stamina: 90, trait: 'Arrogant'    },
+  { id: 'c2',  name: 'Lionel Messi',           image: '/images/messi.jpg',   role: 'CAM', tier: 'Rare',   cost: 3, speed: 82, passing: 96, shooting: 92, defense: 40, stamina: 80, trait: 'Calculative'  },
+  { id: 'c3',  name: 'Erling Haaland',         image: '/images/erling.jpg',  role: 'ST',  tier: 'Rare',   cost: 3, speed: 89, passing: 65, shooting: 94, defense: 38, stamina: 87, trait: 'Arrogant'    },
+  { id: 'c4',  name: 'Kylian Mbappé',          image: '/images/mbappe.jpg',  role: 'LW',  tier: 'Rare',   cost: 3, speed: 97, passing: 80, shooting: 89, defense: 32, stamina: 86, trait: 'Maverick'    },
+  // ── Good (2pt) ──
+  { id: 'c5',  name: 'Kevin De Bruyne',        image: '/images/kevin.jpg',   role: 'CM',  tier: 'Common', cost: 2, speed: 76, passing: 95, shooting: 86, defense: 62, stamina: 84, trait: 'Calculative'  },
+  { id: 'c6',  name: 'Neymar Jr',              image: '/images/neymar.jpg',  role: 'RW',  tier: 'Common', cost: 2, speed: 87, passing: 86, shooting: 85, defense: 30, stamina: 78, trait: 'Maverick'    },
+  { id: 'c7',  name: 'Luka Modrić',            image: '/images/luka.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 74, passing: 91, shooting: 78, defense: 70, stamina: 85, trait: 'Team-First'  },
+  { id: 'c8',  name: 'Jude Bellingham',        image: '/images/jude.jpg',    role: 'CM',  tier: 'Common', cost: 2, speed: 80, passing: 85, shooting: 84, defense: 78, stamina: 92, trait: 'Team-First'  },
+  { id: 'c9',  name: 'Harry Kane',             image: '/images/ronaldo.jpg', role: 'ST',  tier: 'Common', cost: 2, speed: 75, passing: 82, shooting: 90, defense: 42, stamina: 85, trait: 'Calculative'  },
+  { id: 'c10', name: 'Vinicius Jr',            image: '/images/neymar.jpg',  role: 'LW',  tier: 'Common', cost: 2, speed: 94, passing: 76, shooting: 82, defense: 28, stamina: 84, trait: 'Maverick'    },
+  { id: 'c11', name: 'Bruno Fernandes',        image: '/images/kevin.jpg',   role: 'CAM', tier: 'Common', cost: 2, speed: 72, passing: 88, shooting: 82, defense: 55, stamina: 80, trait: 'Arrogant'    },
+  { id: 'c12', name: 'Phil Foden',             image: '/images/mbappe.jpg',  role: 'RW',  tier: 'Common', cost: 2, speed: 83, passing: 84, shooting: 80, defense: 44, stamina: 82, trait: 'Maverick'    },
+  // ── Solid (1pt) ──
+  { id: 'c13', name: 'Virgil van Dijk',        image: '/images/van.jpg',     role: 'CB',  tier: 'Common', cost: 1, speed: 78, passing: 80, shooting: 60, defense: 94, stamina: 88, trait: 'Calculative'  },
+  { id: 'c14', name: 'Sergio Ramos',           image: '/images/sergio.jpg',  role: 'CB',  tier: 'Common', cost: 1, speed: 72, passing: 75, shooting: 68, defense: 88, stamina: 70, trait: 'Panic-Prone'  },
+  { id: 'c15', name: 'Rodri',                  image: '/images/luka.jpg',    role: 'CDM', tier: 'Common', cost: 1, speed: 68, passing: 86, shooting: 65, defense: 88, stamina: 90, trait: 'Team-First'  },
+  { id: 'c16', name: 'Trent Alexander-Arnold', image: '/images/jude.jpg',    role: 'RB',  tier: 'Common', cost: 1, speed: 82, passing: 88, shooting: 72, defense: 75, stamina: 80, trait: 'Calculative'  },
+  { id: 'c17', name: 'Andrew Robertson',       image: '/images/van.jpg',     role: 'LB',  tier: 'Common', cost: 1, speed: 80, passing: 84, shooting: 60, defense: 80, stamina: 86, trait: 'Team-First'  },
+  { id: 'c18', name: 'Ruben Dias',             image: '/images/sergio.jpg',  role: 'CB',  tier: 'Common', cost: 1, speed: 74, passing: 78, shooting: 50, defense: 90, stamina: 85, trait: 'Team-First'  },
+  { id: 'c19', name: 'Marquinhos',             image: '/images/van.jpg',     role: 'CB',  tier: 'Common', cost: 1, speed: 76, passing: 80, shooting: 52, defense: 88, stamina: 84, trait: 'Calculative'  },
+  { id: 'c20', name: 'Pedri',                  image: '/images/luka.jpg',    role: 'CM',  tier: 'Common', cost: 1, speed: 75, passing: 88, shooting: 72, defense: 70, stamina: 82, trait: 'Team-First'  },
+  { id: 'c21', name: 'Manuel Neuer',           image: '/images/sergio.jpg',  role: 'GK',  tier: 'Common', cost: 1, speed: 55, passing: 72, shooting: 30, defense: 92, stamina: 85, trait: 'Calculative'  },
+  { id: 'c22', name: 'Alisson Becker',         image: '/images/van.jpg',     role: 'GK',  tier: 'Common', cost: 1, speed: 52, passing: 68, shooting: 28, defense: 90, stamina: 88, trait: 'Team-First'  },
 ];
 
 // ── In-memory match rooms ─────────────────────────────────────────────────────
@@ -83,7 +98,7 @@ function createRoom(matchId, player1SocketId, player1Address, stake) {
     stake,
     stage: 0, // 0=lobby, 1=draft, 2=placement, 3=match, 4=result
     players: {
-      [player1SocketId]: { address: player1Address, ready: false, squad: [], formation: {}, points: 10 },
+      [player1SocketId]: { address: player1Address, ready: false, squad: [], formation: {}, points: 20 },
     },
     timers: {},
     matchResult: null,
@@ -243,7 +258,7 @@ io.on('connection', (socket) => {
       queue.splice(queue.indexOf(opponent), 1);
       const matchId = crypto.randomUUID();
       const room = createRoom(matchId, opponent.socketId, opponent.address, stake);
-      room.players[socket.id] = { address, ready: false, squad: [], formation: {}, points: 10 };
+      room.players[socket.id] = { address, ready: false, squad: [], formation: {}, points: 20 };
       rooms.set(matchId, room);
 
       io.to(opponent.socketId).emit('match_found', { matchId, opponent: address, cardPool: CARD_POOL });
@@ -305,7 +320,7 @@ io.on('connection', (socket) => {
     if (!card) return;
     if (player.squad.some(c => c.id === cardId)) { socket.emit('pick_rejected', { cardId, reason: 'already_picked' }); return; }
     if (player.points < card.cost) { socket.emit('pick_rejected', { cardId, reason: 'insufficient_points' }); return; }
-    if (player.squad.length >= 5) { socket.emit('pick_rejected', { cardId, reason: 'squad_full' }); return; }
+    if (player.squad.length >= 11) { socket.emit('pick_rejected', { cardId, reason: 'squad_full' }); return; }
 
     player.squad.push(card);
     player.points -= card.cost;
@@ -313,7 +328,7 @@ io.on('connection', (socket) => {
     socket.emit('pick_confirmed', { card, remainingPoints: player.points, squadSize: player.squad.length });
 
     // If both players have 5 cards, advance immediately
-    const allDone = Object.values(room.players).every(p => p.squad.length === 5);
+    const allDone = Object.values(room.players).every(p => p.squad.length === 11);
     if (allDone) {
       clearInterval(room.timers.draft);
       advanceToPlacement(room);

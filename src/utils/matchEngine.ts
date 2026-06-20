@@ -14,38 +14,44 @@ import {
   resolvePlayerCollisions
 } from './physics';
 
-// Role type mapping for 5v5 setup
-export type PlayerRole = 'GK' | 'DF' | 'MF' | 'FW';
+// Role type mapping for 11v11 (4-3-3)
+export type PlayerRole = 'GK' | 'LB' | 'CB1' | 'CB2' | 'RB' | 'CDM' | 'CM1' | 'CM2' | 'LW' | 'ST' | 'RW';
 
-interface RolePosition {
-  x: number;
-  y: number;
-}
+interface RolePosition { x: number; y: number; }
 
-// Kickoff positions (Red attacks Left->Right, Blue attacks Right->Left)
-const RED_HOME_POSITIONS: Record<PlayerRole | string, RolePosition> = {
-  GK: { x: 60, y: 225 },
-  DF1: { x: 190, y: 130 },
-  DF2: { x: 190, y: 320 },
-  MF: { x: 360, y: 225 },
-  FW: { x: 500, y: 225 }
+// 4-3-3 kickoff positions — Red attacks left→right, Blue attacks right→left
+const RED_HOME_POSITIONS: Record<string, RolePosition> = {
+  GK:  { x: 55,  y: 225 },
+  LB:  { x: 175, y: 360 },
+  CB1: { x: 190, y: 270 },
+  CB2: { x: 190, y: 180 },
+  RB:  { x: 175, y: 90  },
+  CDM: { x: 310, y: 225 },
+  CM1: { x: 390, y: 320 },
+  CM2: { x: 390, y: 130 },
+  LW:  { x: 530, y: 370 },
+  ST:  { x: 570, y: 225 },
+  RW:  { x: 530, y: 80  },
 };
 
-const BLUE_HOME_POSITIONS: Record<PlayerRole | string, RolePosition> = {
-  GK: { x: 740, y: 225 },
-  DF1: { x: 610, y: 130 },
-  DF2: { x: 610, y: 320 },
-  MF: { x: 440, y: 225 },
-  FW: { x: 300, y: 225 }
+const BLUE_HOME_POSITIONS: Record<string, RolePosition> = {
+  GK:  { x: 745, y: 225 },
+  RB:  { x: 625, y: 360 },
+  CB1: { x: 610, y: 270 },
+  CB2: { x: 610, y: 180 },
+  LB:  { x: 625, y: 90  },
+  CDM: { x: 490, y: 225 },
+  CM1: { x: 410, y: 320 },
+  CM2: { x: 410, y: 130 },
+  RW:  { x: 270, y: 370 },
+  ST:  { x: 230, y: 225 },
+  LW:  { x: 270, y: 80  },
 };
 
-// Map indices to roles
-export function getRoleFromIndex(index: number): PlayerRole {
-  if (index === 0) return 'GK';
-  if (index === 1) return 'DF1' as any; // DF Left
-  if (index === 2) return 'DF2' as any; // DF Right
-  if (index === 3) return 'MF';
-  return 'FW';
+const ROLE_ORDER = ['GK','LB','CB1','CB2','RB','CDM','CM1','CM2','LW','ST','RW'];
+
+export function getRoleFromIndex(index: number): string {
+  return ROLE_ORDER[index % ROLE_ORDER.length] ?? 'MF';
 }
 
 // Generate a random ID
@@ -163,7 +169,8 @@ export function resetToKickoff(players: Player[], ball: Ball): void {
   ball.controlledById = null;
 
   players.forEach((p, index) => {
-    const role = getRoleFromIndex(index % 5);
+    const teamIndex = index % 11;
+    const role = getRoleFromIndex(teamIndex);
     const home = p.side === 'red' ? RED_HOME_POSITIONS[role] : BLUE_HOME_POSITIONS[role];
     p.x = home.x;
     p.y = home.y;
@@ -213,7 +220,7 @@ export function runMatchTick(
 
   // 2. Outfield Stamina Degradation — faster for low-stamina players
   players.forEach(p => {
-    const role = getRoleFromIndex(players.indexOf(p) % 5);
+    const role = getRoleFromIndex(players.indexOf(p) % 11);
     if (role !== 'GK') {
       // Higher stamina stat = slower drain; wingers/strikers burn more energy
       const positionBurn = ['ST','LW','RW'].includes(p.position ?? '') ? 1.4 : 1.0;
@@ -418,7 +425,7 @@ export function runMatchTick(
           shootBall(ball, player, opponentGoalX, FIELD_HEIGHT / 2 + (Math.random() * 60 - 30), 12 + (player.shooting / 25));
         } else if (roll < shootWeight + passWeight) {
           // PASS ACTION
-          const teammates = players.filter(t => t.side === player.side && t.id !== player.id && getRoleFromIndex(players.indexOf(t) % 5) !== 'GK');
+          const teammates = players.filter(t => t.side === player.side && t.id !== player.id && getRoleFromIndex(players.indexOf(t) % 11) !== 'GK');
           
           if (teammates.length > 0) {
             // Rank teammates based on proximity to opponent goal
@@ -507,7 +514,7 @@ export function runMatchTick(
             } else {
               // TACKLE FAILED: BREAKDOWN TRIGGER
               // Trigger "Breakdown" if defender fails tackle at low stamina (< 20%)
-              if (player.currentStamina < 20 && role.toString().startsWith('DF')) {
+              if (player.currentStamina < 20 && (role === 'CB1' || role === 'CB2' || role === 'LB' || role === 'RB')) {
                 const event: MangaEvent = {
                   id: generateId(),
                   type: 'breakdown',
@@ -526,7 +533,9 @@ export function runMatchTick(
           }
 
           // Defensive tracking target
-          if (role.toString().startsWith('DF') || (role === 'MF' && Math.random() < 0.7)) {
+          const isDefender = ['LB','CB1','CB2','RB','CDM'].includes(role);
+          const isMid = ['CM1','CM2'].includes(role);
+          if (isDefender || (isMid && Math.random() < 0.7)) {
             // Chase ball carrier if in own half, else block pathways
             const isCarrierInOwnHalf = player.side === 'red' ? carrier.x < FIELD_WIDTH / 2 + 50 : carrier.x > FIELD_WIDTH / 2 - 50;
             

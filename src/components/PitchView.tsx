@@ -34,7 +34,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
   const initializedRef = useRef(false);
   const hostEmitIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const SLOT_ROLES = ['GK', 'LB', 'RB', 'CDM', 'ST'];
+  const SLOT_ROLES = ['GK','LB','CB1','CB2','RB','CDM','CM1','CM2','LW','ST','RW'];
 
   // Initialize match state once — use the actual drafted players from both sides
   useEffect(() => {
