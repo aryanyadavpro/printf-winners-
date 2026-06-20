@@ -34,6 +34,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
   const initializedRef = useRef(false);
   const hostEmitIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [imagesReady, setImagesReady] = useState(0); // increments when any image loads → triggers canvas redraw
 
   // Claude Haiku agent decision system
   const agentDecisionCache = useRef<Map<string, string>>(new Map());
@@ -97,14 +98,22 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     setMatchLog(["Match ready. Kickoff in 3…"]);
     setCountdown(3);
 
-    // Preload all player photos into cache for canvas drawing
-    initialState.players.forEach(p => {
-      if (p.image && !imageCache.current.has(p.image)) {
-        const img = new window.Image();
-        img.src = p.image;
-        imageCache.current.set(p.image, img);
-      }
+    // Preload all player photos — trigger canvas redraw on each load
+    let loaded = 0;
+    const unique = [...new Set(initialState.players.map(p => p.image).filter(Boolean))] as string[];
+    unique.forEach(src => {
+      if (imageCache.current.has(src)) { loaded++; return; }
+      const img = new window.Image();
+      img.onload = () => {
+        loaded++;
+        if (loaded >= unique.length) setImagesReady(n => n + 1); // redraw once all done
+      };
+      img.onerror = () => { loaded++; };
+      img.src = src;
+      imageCache.current.set(src, img);
     });
+    // If all were already cached
+    if (loaded >= unique.length) setImagesReady(n => n + 1);
   }, [squad]);
 
   // 3-2-1 auto-start countdown
@@ -334,39 +343,48 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     ctx.strokeStyle = '#ffffff';
     ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
 
-    // 2. Draw Players
+    // 2. Draw Players — identical structure for both teams, colour is the only difference
     const redPlayers  = matchState.players.filter(p => p.side === 'red');
     const bluePlayers = matchState.players.filter(p => p.side === 'blue');
-    const R = 20; // avatar radius
+    const R = 22; // avatar radius (same for everyone)
 
-    matchState.players.forEach(player => {
-      const isRed       = player.side === 'red';
-      const teamList    = isRed ? redPlayers : bluePlayers;
-      const teamIdx     = teamList.indexOf(player);
-      const role        = SLOT_ROLES[teamIdx] ?? '?';
-      const ringColor   = isRed ? '#E8001D' : '#0033A0';
-      const img         = player.image ? imageCache.current.get(player.image) : null;
-      const imgReady    = img && img.complete && img.naturalWidth > 0;
+    const drawPlayer = (player: typeof matchState.players[0]) => {
+      const isRed     = player.side === 'red';
+      const teamList  = isRed ? redPlayers : bluePlayers;
+      const teamIdx   = teamList.indexOf(player);
+      const role      = SLOT_ROLES[teamIdx] ?? '?';
+      const teamColor = isRed ? '#E8001D' : '#0033A0';
+      const img       = player.image ? imageCache.current.get(player.image) : null;
+      const imgReady  = !!(img && img.complete && img.naturalWidth > 0);
+      const { x, y }  = player;
 
-      const { x, y } = player;
-
-      // Gold possession ring (drawn first, behind avatar)
+      // ── 1. Gold possession halo ───────────────────────────────────────────
       if (player.hasBall) {
+        ctx.save();
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 4;
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.arc(x, y, R + 5, 0, Math.PI * 2);
+        ctx.arc(x, y, R + 6, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
       }
 
-      // Coloured team ring
-      ctx.strokeStyle = ringColor;
-      ctx.lineWidth = 3;
+      // ── 2. White outer ring then team-colour inner ring ───────────────────
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, R + 2, 0, Math.PI * 2);
+      ctx.arc(x, y, R + 3, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Circular clip → draw photo or fallback
+      ctx.strokeStyle = teamColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, R + 1, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // ── 3. Circular photo clip ────────────────────────────────────────────
       ctx.save();
       ctx.beginPath();
       ctx.arc(x, y, R, 0, Math.PI * 2);
@@ -375,42 +393,49 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
       if (imgReady) {
         ctx.drawImage(img!, x - R, y - R, R * 2, R * 2);
       } else {
-        // Fallback: solid team colour with initials
-        ctx.fillStyle = ringColor;
-        ctx.fill();
+        ctx.fillStyle = teamColor;
+        ctx.fillRect(x - R, y - R, R * 2, R * 2);
         ctx.fillStyle = '#fff';
-        ctx.font = `bold ${R * 0.55}px Arial`;
+        ctx.font = `bold ${R * 0.6}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(player.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2), x, y);
+        const initials = player.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2);
+        ctx.fillText(initials, x, y);
       }
       ctx.restore();
 
-      // Role badge below avatar
-      const badgeW = 32;
-      const badgeH = 13;
+      // ── 4. Role badge (identical for both teams) ──────────────────────────
+      const badgeW = 34;
+      const badgeH = 14;
       const bx = x - badgeW / 2;
-      const by = y + R + 3;
-      ctx.fillStyle = ringColor;
+      const by = y + R + 4;
+
+      ctx.fillStyle = teamColor;
       ctx.beginPath();
-      ctx.roundRect(bx, by, badgeW, badgeH, 3);
+      if (ctx.roundRect) ctx.roundRect(bx, by, badgeW, badgeH, 3);
+      else ctx.rect(bx, by, badgeW, badgeH);
       ctx.fill();
+
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 8px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(role, x, by + badgeH / 2);
 
-      // Stamina bar
-      const barW = 40;
+      // ── 5. Stamina bar (same width/position for both) ─────────────────────
+      const barW = 44;
       const barY  = by + badgeH + 3;
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(x - barW / 2, barY, barW, 4);
       const staminaColor = player.currentStamina < 25 ? '#ff3b30'
         : player.currentStamina < 60 ? '#ffaa00' : '#34c759';
       ctx.fillStyle = staminaColor;
       ctx.fillRect(x - barW / 2, barY, (player.currentStamina / 100) * barW, 4);
-    });
+    };
+
+    // Draw blue team first (behind), then red team on top
+    bluePlayers.forEach(drawPlayer);
+    redPlayers.forEach(drawPlayer);
 
     // 3. Draw Ball
     const ball = matchState.ball;
@@ -430,7 +455,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     ctx.arc(ball.x, ball.y, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-  }, [matchState]);
+  }, [matchState, imagesReady]);
 
   // Read trait custom colors
   const getTraitColor = (trait: string) => {
