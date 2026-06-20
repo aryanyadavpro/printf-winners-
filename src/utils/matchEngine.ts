@@ -381,7 +381,6 @@ export function runMatchTick(
               timestamp: new Date().toLocaleTimeString()
             };
             mangaTriggerCallback(event);
-            state.isMangaPaused = true;
             state.currentMangaEvent = event;
           }
 
@@ -412,7 +411,6 @@ export function runMatchTick(
                 timestamp: new Date().toLocaleTimeString()
               };
               mangaTriggerCallback(event);
-              state.isMangaPaused = true;
               state.currentMangaEvent = event;
             }
 
@@ -487,7 +485,6 @@ export function runMatchTick(
                   timestamp: new Date().toLocaleTimeString()
                 };
                 mangaTriggerCallback(event);
-                state.isMangaPaused = true;
                 state.currentMangaEvent = event;
               }
               

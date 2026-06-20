@@ -15,6 +15,8 @@ interface PitchViewProps {
 
 export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mangaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMangaEventTimeRef = useRef<number>(0);
 
   // Simulation State
   const [matchState, setMatchState] = useState<MatchState | null>(null);
@@ -93,7 +95,7 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
   // Main Simulation Loop
   useEffect(() => {
-    if (!matchState || !matchState.isPlaying || matchState.isMangaPaused) return;
+    if (!matchState || !matchState.isPlaying) return;
 
     let animFrameId: number;
 
@@ -107,11 +109,6 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
         // Execute multiple physics calculations per frame for speed up
         for (let s = 0; s < simSpeed; s++) {
           tempState = runMatchTick(tempState, handleMangaEventTrigger);
-          
-          // If a tick paused the match for a manga event, abort subsequent sub-ticks
-          if (tempState.isMangaPaused) {
-            break;
-          }
         }
 
         return tempState;
@@ -125,7 +122,15 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     return () => {
       cancelAnimationFrame(animFrameId);
     };
-  }, [matchState?.isPlaying, matchState?.isMangaPaused, simSpeed]);
+  }, [matchState?.isPlaying, simSpeed]);
+
+  useEffect(() => {
+    return () => {
+      if (mangaTimeoutRef.current) {
+        clearTimeout(mangaTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle Event Triggers from the match engine
   const handleMangaEventTrigger = async (event: MangaEvent) => {
@@ -140,8 +145,22 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     }
 
     setMatchLog(prev => [logMsg, ...prev].slice(0, 30));
+
+    // Cooldown check (2.5 seconds between flashes to prevent visual clutter)
+    const now = Date.now();
+    if (now - lastMangaEventTimeRef.current < 2500) {
+      return;
+    }
+    lastMangaEventTimeRef.current = now;
+
+    // Clear previous timeout if any
+    if (mangaTimeoutRef.current) {
+      clearTimeout(mangaTimeoutRef.current);
+    }
+
     setMangaEvent(event);
     setIsDialogueLoading(true);
+    setGeneratedDialogue('');
 
     // Call the Gemini API to get actual LLM-generated dialogue
     try {
@@ -162,6 +181,11 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
       setGeneratedDialogue("This is my moment!");
     } finally {
       setIsDialogueLoading(false);
+      
+      // Auto-dismiss the dialogue bubble and corner banner after 3.5 seconds
+      mangaTimeoutRef.current = setTimeout(() => {
+        handleCloseManga();
+      }, 3500);
     }
   };
 
@@ -474,6 +498,44 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
           height={FIELD_HEIGHT} 
           style={{ width: '100%', height: '100%', display: 'block' }}
         />
+
+        {/* In-Game Floating Speech Bubble */}
+        {mangaEvent && (() => {
+          const activePlayer = matchState?.players.find(p => p.id === mangaEvent.player.id);
+          if (!activePlayer) return null;
+
+          const traitColor = getTraitColor(activePlayer.trait);
+
+          return (
+            <div 
+              style={{
+                position: 'absolute',
+                left: `${(activePlayer.x / FIELD_WIDTH) * 100}%`,
+                top: `${(activePlayer.y / FIELD_HEIGHT) * 100}%`,
+                transform: 'translate(-50%, calc(-100% - 25px))',
+                zIndex: 90,
+                pointerEvents: 'none',
+                transition: 'left 0.08s linear, top 0.08s linear'
+              }}
+            >
+              <div 
+                className="ingame-speech-bubble"
+                style={{ 
+                  boxShadow: `4px 4px 0px ${traitColor}`,
+                  border: `3px solid #000000`
+                }}
+              >
+                {isDialogueLoading ? (
+                  <span style={{ fontSize: '11px', color: '#555', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                    THINKING...
+                  </span>
+                ) : (
+                  <span>&ldquo;{generatedDialogue}&rdquo;</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Manga breakout overlay injection */}
         {mangaEvent && (
