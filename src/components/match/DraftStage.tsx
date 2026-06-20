@@ -96,11 +96,25 @@ function CardTile({ card, state, canAfford, onPick, onUnpick }: {
         }}>{card.cost}PT</span>
       </div>
 
+      {/* Player photo */}
+      <div style={{ position: 'relative', height: '90px', overflow: 'hidden', borderBottom: '3px solid #000', background: '#f0f0f0' }}>
+        <img
+          src={card.image}
+          alt={card.name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+
       {/* Body */}
-      <div style={{ padding: '10px' }}>
+      <div style={{ padding: '8px 10px' }}>
         {/* Name */}
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', letterSpacing: '1px', lineHeight: 1.1, marginBottom: '6px', color: '#000' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '0.5px', lineHeight: 1.1, marginBottom: '2px', color: '#000' }}>
           {card.name}
+        </div>
+        {/* Role */}
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '9px', color: '#777', letterSpacing: '1px', marginBottom: '6px' }}>
+          {(card as any).role?.toUpperCase()}
         </div>
 
         {/* Trait pill */}
@@ -108,7 +122,7 @@ function CardTile({ card, state, canAfford, onPick, onUnpick }: {
           display: 'inline-block', border: '2px solid #000',
           background: trait.bg, color: trait.color,
           fontFamily: 'var(--font-display)', fontSize: '9px', letterSpacing: '1.5px',
-          padding: '1px 6px', marginBottom: '10px',
+          padding: '1px 6px', marginBottom: '8px',
         }}>
           {card.trait.toUpperCase()}
         </div>
@@ -280,15 +294,22 @@ export default function DraftStage({
                   borderBottom: i < 4 ? '3px solid #000' : undefined,
                   minHeight: '56px',
                 }}>
-                  {/* Slot number */}
+                  {/* Slot number / player photo */}
                   <div style={{
-                    width: '40px', background: card ? 'var(--fifa-blue)' : 'var(--bg-alt)',
+                    width: '44px', flexShrink: 0,
                     borderRight: '3px solid #000', alignSelf: 'stretch',
+                    overflow: 'hidden', position: 'relative',
+                    background: card ? 'var(--fifa-blue)' : 'var(--bg-alt)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'var(--font-display)', fontSize: '16px', color: card ? '#fff' : '#ccc',
-                    flexShrink: 0,
                   }}>
-                    {i + 1}
+                    {card ? (
+                      <img src={card.image} alt={card.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', position: 'absolute', inset: 0 }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '16px', color: '#ccc' }}>{i + 1}</span>
+                    )}
                   </div>
 
                   {card ? (

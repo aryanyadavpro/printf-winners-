@@ -4,6 +4,8 @@ export type PersonaTrait = 'Arrogant' | 'Calculative' | 'Panic-Prone' | 'Maveric
 export interface DraftCard {
   id: string;
   name: string;
+  image: string; // path relative to /public e.g. '/images/ronaldo.jpg'
+  role: string;  // e.g. 'Striker', 'Playmaker'
   tier: CardTier;
   cost: number;
   speed: number;

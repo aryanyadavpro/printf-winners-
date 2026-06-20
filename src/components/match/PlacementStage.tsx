@@ -250,43 +250,37 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
                 key={card.id}
                 onClick={() => !isPlaced && handleCardClick(card)}
                 style={{
-                  padding: '12px 14px',
+                  display: 'flex', gap: '0',
                   borderBottom: '3px solid #000',
-                  background: isActive
-                    ? 'var(--fifa-gold-light)'
-                    : isPlaced
-                    ? '#f0f0f0'
-                    : '#fff',
+                  background: isActive ? 'var(--fifa-gold-light)' : isPlaced ? '#f0f0f0' : '#fff',
                   cursor: isPlaced ? 'default' : 'pointer',
-                  opacity: isPlaced ? 0.5 : 1,
+                  opacity: isPlaced ? 0.55 : 1,
                   transition: 'background 0.1s',
-                  borderLeft: isActive ? `6px solid ${tierColor}` : isPlaced ? '6px solid #ccc' : `6px solid ${tierColor}`,
+                  borderLeft: `5px solid ${isActive ? '#9c6e00' : isPlaced ? '#ccc' : tierColor}`,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', color: '#000', letterSpacing: '0.5px' }}>
-                    {card.name}
-                  </div>
-                  {isPlaced && (
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '9px', color: '#00a651', letterSpacing: '1px' }}>
-                      ✓ ON PITCH
-                    </div>
-                  )}
-                  {isActive && (
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '9px', color: '#9c6e00', letterSpacing: '1px' }}>
-                      SELECTED ▸
-                    </div>
-                  )}
+                {/* Player photo */}
+                <div style={{ width: '52px', height: '60px', flexShrink: 0, overflow: 'hidden', borderRight: '2px solid #000', background: '#eee' }}>
+                  <img
+                    src={card.image}
+                    alt={card.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
                 </div>
-                <div style={{ display: 'flex', gap: '6px', marginTop: '4px', alignItems: 'center' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-display)', fontSize: '9px', letterSpacing: '1px',
-                    color: tierColor, background: '#f5f5f5', border: `1.5px solid ${tierColor}`,
-                    padding: '1px 5px',
-                  }}>{card.tier.toUpperCase()}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '9px', color: '#777', letterSpacing: '1px' }}>
-                    S:{card.speed} P:{card.passing} D:{card.defense}
-                  </span>
+
+                {/* Info */}
+                <div style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '12px', color: '#000', letterSpacing: '0.5px' }}>
+                      {card.name}
+                    </div>
+                    {isPlaced && <span style={{ fontFamily: 'var(--font-display)', fontSize: '8px', color: '#00a651', letterSpacing: '1px' }}>✓ ON PITCH</span>}
+                    {isActive && <span style={{ fontFamily: 'var(--font-display)', fontSize: '8px', color: '#9c6e00', letterSpacing: '1px' }}>SELECTED ▸</span>}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '9px', color: '#888', letterSpacing: '0.5px' }}>
+                    {(card as any).role} · {card.cost}PT
+                  </div>
                 </div>
               </div>
             );
