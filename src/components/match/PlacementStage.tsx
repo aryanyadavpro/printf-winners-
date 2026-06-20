@@ -171,60 +171,70 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
           {/* Formation slots */}
           {HALF_SLOTS.map((slot, i) => {
             const card = formation[i];
-            const isEmpty = !card;
-            const isSelected = card && selected === null; // highlight effect placeholder
             const tierColor = card ? TIER_COLORS[card.tier] : '#fff';
-            const canDrop = isEmpty && selected !== null;
+            const canDrop = !card && selected !== null;
 
             return (
-              <div
-                key={i}
-                onClick={() => handleSlotClick(i)}
-                style={{
-                  position: 'absolute',
-                  left: `${slot.x * 100}%`,
-                  top: `${slot.y * 100}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: '58px',
-                  height: '58px',
+              <div key={i} onClick={() => handleSlotClick(i)} style={{
+                position: 'absolute',
+                left: `${slot.x * 100}%`,
+                top: `${slot.y * 100}%`,
+                transform: 'translate(-50%, -50%)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: '3px',
+                cursor: (canDrop || card) ? 'pointer' : 'default',
+                zIndex: 2, userSelect: 'none',
+              }}>
+                {/* Circular avatar */}
+                <div style={{
+                  width: card ? '52px' : '42px',
+                  height: card ? '52px' : '42px',
                   borderRadius: '50%',
+                  overflow: 'hidden',
                   border: canDrop
                     ? '3px dashed #fff'
                     : card
                     ? `3px solid ${tierColor}`
-                    : '2px dashed rgba(255,255,255,0.35)',
-                  backgroundColor: canDrop
-                    ? 'rgba(255,255,255,0.18)'
-                    : card
-                    ? 'rgba(0,0,0,0.55)'
-                    : 'rgba(0,0,0,0.28)',
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  cursor: (canDrop || card) ? 'pointer' : 'default',
-                  boxShadow: card ? `0 0 12px ${tierColor}88` : canDrop ? '0 0 14px rgba(255,255,255,0.5)' : 'none',
+                    : '2px dashed rgba(255,255,255,0.4)',
+                  boxShadow: card
+                    ? `0 0 14px ${tierColor}99, 0 2px 8px rgba(0,0,0,0.6)`
+                    : canDrop ? '0 0 16px rgba(255,255,255,0.6)' : 'none',
+                  background: card ? '#111' : 'rgba(0,0,0,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.15s',
-                  zIndex: 2,
-                  userSelect: 'none',
-                }}
-              >
-                {card ? (
-                  <>
-                    <div style={{
-                      width: '14px', height: '14px', borderRadius: '50%',
-                      background: TRAIT_COLORS[card.trait] || '#fff',
-                      border: '2px solid #000', marginBottom: '2px',
-                    }} />
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '8px', color: '#fff', textAlign: 'center', lineHeight: 1.1, letterSpacing: '0.5px' }}>
+                  position: 'relative',
+                }}>
+                  {card ? (
+                    <img
+                      src={card.image}
+                      alt={card.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <span style={{
+                      fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 700,
+                      color: canDrop ? '#fff' : 'rgba(255,255,255,0.5)',
+                    }}>{slot.label}</span>
+                  )}
+                </div>
+
+                {/* Name + role badge below circle */}
+                {card && (
+                  <div style={{
+                    background: tierColor,
+                    borderRadius: '4px',
+                    padding: '1px 5px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '7px', color: '#000', fontWeight: 900, letterSpacing: '0.3px', lineHeight: 1.2 }}>
                       {card.name.split(' ')[0].toUpperCase()}
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '7px', color: tierColor, opacity: 0.9, letterSpacing: '0.5px' }}>
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '6px', color: '#000', opacity: 0.75, letterSpacing: '0.5px' }}>
                       {slot.label}
-                    </div>
-                  </>
-                ) : (
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', color: canDrop ? '#fff' : 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
-                    {slot.label}
-                  </span>
+                    </span>
+                  </div>
                 )}
               </div>
             );

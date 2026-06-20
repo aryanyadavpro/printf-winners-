@@ -13,9 +13,9 @@ export interface Player {
   stamina: number; // Max/Initial Stamina (1-99)
   currentStamina: number; // Current Stamina during game
   
-  // Qualitative Persona Trait
   trait: PersonaTrait;
-  position: string; // e.g. 'ST', 'CAM', 'LW', 'RW', 'CM', 'CB', 'GK'
+  position: string;
+  image?: string; // path to player photo e.g. '/images/ronaldo.jpg'
 
   // Position & Physics Vectors
   x: number;

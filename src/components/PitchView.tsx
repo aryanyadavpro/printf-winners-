@@ -33,6 +33,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
 
   const initializedRef = useRef(false);
   const hostEmitIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Claude Haiku agent decision system
   const agentDecisionCache = useRef<Map<string, string>>(new Map());
@@ -95,6 +96,15 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     setMatchState(initialState);
     setMatchLog(["Match ready. Kickoff in 3…"]);
     setCountdown(3);
+
+    // Preload all player photos into cache for canvas drawing
+    initialState.players.forEach(p => {
+      if (p.image && !imageCache.current.has(p.image)) {
+        const img = new window.Image();
+        img.src = p.image;
+        imageCache.current.set(p.image, img);
+      }
+    });
   }, [squad]);
 
   // 3-2-1 auto-start countdown
@@ -327,69 +337,79 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     // 2. Draw Players
     const redPlayers  = matchState.players.filter(p => p.side === 'red');
     const bluePlayers = matchState.players.filter(p => p.side === 'blue');
+    const R = 20; // avatar radius
 
     matchState.players.forEach(player => {
-      const isRed      = player.side === 'red';
-      const teamList   = isRed ? redPlayers : bluePlayers;
-      const teamIdx    = teamList.indexOf(player);
-      const role       = SLOT_ROLES[teamIdx] ?? '?';
-      const circleColor = isRed ? '#E8001D' : '#0033A0';
-      const shadowColor = isRed ? '#8B0000' : '#001A5E';
+      const isRed       = player.side === 'red';
+      const teamList    = isRed ? redPlayers : bluePlayers;
+      const teamIdx     = teamList.indexOf(player);
+      const role        = SLOT_ROLES[teamIdx] ?? '?';
+      const ringColor   = isRed ? '#E8001D' : '#0033A0';
+      const img         = player.image ? imageCache.current.get(player.image) : null;
+      const imgReady    = img && img.complete && img.naturalWidth > 0;
 
-      // Drop shadow
-      ctx.fillStyle = shadowColor;
-      ctx.beginPath();
-      ctx.arc(player.x + 2, player.y + 2, 18, 0, Math.PI * 2);
-      ctx.fill();
+      const { x, y } = player;
 
-      // Main circle
-      ctx.fillStyle = circleColor;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, 18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Ball possession indicator
+      // Gold possession ring (drawn first, behind avatar)
       if (player.hasBall) {
         ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(player.x, player.y, 22, 0, Math.PI * 2);
+        ctx.arc(x, y, R + 5, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      // Player name (first word, up to 4 chars)
-      const shortName = player.name.split(' ')[0].substring(0, 4).toUpperCase();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px Arial, sans-serif';
+      // Coloured team ring
+      ctx.strokeStyle = ringColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, R + 2, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Circular clip → draw photo or fallback
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, R, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (imgReady) {
+        ctx.drawImage(img!, x - R, y - R, R * 2, R * 2);
+      } else {
+        // Fallback: solid team colour with initials
+        ctx.fillStyle = ringColor;
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${R * 0.55}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(player.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2), x, y);
+      }
+      ctx.restore();
+
+      // Role badge below avatar
+      const badgeW = 32;
+      const badgeH = 13;
+      const bx = x - badgeW / 2;
+      const by = y + R + 3;
+      ctx.fillStyle = ringColor;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, badgeW, badgeH, 3);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(shortName, player.x, player.y - 3);
-
-      // Role label
-      ctx.font = 'bold 8px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(role, player.x, player.y + 7);
-
-      // Name tag below circle
-      ctx.fillStyle = isRed ? '#E8001D' : '#0033A0';
-      ctx.fillRect(player.x - 20, player.y + 22, 40, 13);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(player.x - 20, player.y + 22, 40, 13);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 8px Arial, sans-serif';
-      ctx.fillText(player.name.split(' ').map((w: string) => w[0]).join('').substring(0, 4), player.x, player.y + 29);
+      ctx.fillText(role, x, by + badgeH / 2);
 
       // Stamina bar
-      const barW = 36;
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(player.x - barW / 2, player.y + 38, barW, 4);
-      const staminaColor = player.currentStamina < 25 ? '#ff3b30' : player.currentStamina < 60 ? '#ffaa00' : '#34c759';
+      const barW = 40;
+      const barY  = by + badgeH + 3;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(x - barW / 2, barY, barW, 4);
+      const staminaColor = player.currentStamina < 25 ? '#ff3b30'
+        : player.currentStamina < 60 ? '#ffaa00' : '#34c759';
       ctx.fillStyle = staminaColor;
-      ctx.fillRect(player.x - barW / 2, player.y + 38, (player.currentStamina / 100) * barW, 4);
+      ctx.fillRect(x - barW / 2, barY, (player.currentStamina / 100) * barW, 4);
     });
 
     // 3. Draw Ball

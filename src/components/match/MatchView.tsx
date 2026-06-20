@@ -29,6 +29,7 @@ function cardToPlayer(card: DraftCard, side: 'red' | 'blue', x: number, y: numbe
     id: `${side}_${card.id}`,
     tokenId: 0,
     name: card.name,
+    image: card.image,
     side,
     position: (card as any).role ?? 'CM',
     speed: card.speed,
