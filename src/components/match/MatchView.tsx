@@ -202,23 +202,30 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
   const handleCreateRoom = useCallback(async (code: string, s: string) => {
     setStake(s);
     setIsConnecting(true);
-    const mid = `room_${code}_${Date.now()}`;
+    const mid = code; // code IS the matchId — joiner types the same code
     await depositToEscrow(mid, s, true);
     socketRef.current?.emit('create_room', { matchId: mid, address: walletAddress, stake: s });
   }, [walletAddress, provider]);
 
-  const handleJoinRoom = useCallback(async (code: string) => {
+  const handleJoinRoom = useCallback(async (code: string, s: string) => {
+    setStake(s);
     setIsConnecting(true);
-    // Find matchId by room code prefix — simplified: user types full matchId
     const mid = code;
-    await depositToEscrow(mid, stake, false);
+    await depositToEscrow(mid, s, false);
     socketRef.current?.emit('join_room', { matchId: mid, address: walletAddress });
-  }, [walletAddress, stake, provider]);
+  }, [walletAddress, provider]);
 
   const handleLeaveQueue = useCallback(() => {
     socketRef.current?.emit('leave_queue');
     setQueuePosition(null);
     setIsConnecting(false);
+  }, []);
+
+  const handleCancelRoom = useCallback(() => {
+    setMatchId('');
+    setCardPool([]);
+    setIsConnecting(false);
+    setStatusMsg('');
   }, []);
 
   // ── Stage handlers ──────────────────────────────────────────────────────────
@@ -282,9 +289,12 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
           onJoinQueue={handleJoinQueue}
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
+          onCancelRoom={handleCancelRoom}
           isConnecting={isConnecting}
           queuePosition={queuePosition}
           onLeaveQueue={handleLeaveQueue}
+          createdRoomCode={matchId}
+          opponentJoined={!!opponentAddress}
         />
       )}
 
