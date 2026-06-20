@@ -146,6 +146,10 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
       setStatusMsg(`Pick rejected: ${reason.replace(/_/g, ' ')}`);
     });
 
+    socket.on('draft_confirmed', () => {
+      setStatusMsg('Squad locked! Waiting for opponent to confirm…');
+    });
+
     socket.on('formation_confirmed', () => setFormationSubmitted(true));
 
     socket.on('match_result', (res: MatchResult) => {
@@ -308,6 +312,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
           opponentAddress={opponentAddress}
           onPickCard={handlePickCard}
           onUnpickCard={handleUnpickCard}
+          onConfirmSquad={() => socketRef.current?.emit('confirm_draft', { matchId })}
         />
       )}
 

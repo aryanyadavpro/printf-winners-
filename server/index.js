@@ -351,6 +351,24 @@ io.on('connection', (socket) => {
     socket.emit('unpick_confirmed', { cardId, remainingPoints: player.points, squadSize: player.squad.length });
   });
 
+  // ── Draft: player confirms their squad early ──────────────────────────────
+  socket.on('confirm_draft', ({ matchId }) => {
+    const room = getRoom(matchId);
+    if (!room || room.stage !== 1) return;
+    const player = room.players[socket.id];
+    if (!player || player.squad.length < 5) return;
+
+    player.draftConfirmed = true;
+    const allConfirmed = Object.values(room.players).every(p => p.draftConfirmed && p.squad.length >= 5);
+    if (allConfirmed) {
+      clearInterval(room.timers.draft);
+      advanceToPlacement(room);
+    } else {
+      // Tell this player their opponent hasn't confirmed yet
+      socket.emit('draft_confirmed');
+    }
+  });
+
   // ── Placement stage: submit formation ────────────────────────────────────
   socket.on('submit_formation', ({ matchId, formation }) => {
     const room = getRoom(matchId);
