@@ -1,0 +1,591 @@
+'use client';
+
+import React, { useRef, useEffect, useState } from 'react';
+import { Player, Ball, MatchState, MangaEvent, PersonaTrait } from '../types/game';
+import { initializePlayers, runMatchTick, resetToKickoff, getRoleFromIndex } from '../utils/matchEngine';
+import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } from '../utils/physics';
+import { updatePlayerStatsOnChain } from '../utils/web3';
+import { Play, Pause, RotateCcw, FastForward, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import MangaOverlay from './MangaOverlay';
+
+interface PitchViewProps {
+  squad: Player[];
+  onBackToDashboard: () => void;
+}
+
+export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Simulation State
+  const [matchState, setMatchState] = useState<MatchState | null>(null);
+  const [simSpeed, setSimSpeed] = useState<number>(1); // 1x, 2x, 4x
+  const [matchLog, setMatchLog] = useState<string[]>([]);
+  const [mangaEvent, setMangaEvent] = useState<MangaEvent | null>(null);
+  const [generatedDialogue, setGeneratedDialogue] = useState<string>('');
+  const [isDialogueLoading, setIsDialogueLoading] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncCompleted, setSyncCompleted] = useState<boolean>(false);
+  const [syncHash, setSyncHash] = useState<string>('');
+
+  // Initialize match state once on load
+  useEffect(() => {
+    // 5 players from squad (Red) vs 5 generated AI opponents (Blue)
+    const redTeam = squad.map((p, idx) => ({
+      ...p,
+      side: 'red' as const,
+      x: 0, y: 0, vx: 0, vy: 0 // Reset physics vectors
+    }));
+
+    // Random traits for opponents
+    const opponentTraits: PersonaTrait[] = ['Team-First', 'Arrogant', 'Calculative', 'Panic-Prone', 'Maverick'];
+    const blueTeam = initializePlayers([], opponentTraits).filter(p => p.side === 'blue');
+
+    const initialBall: Ball = {
+      x: FIELD_WIDTH / 2,
+      y: FIELD_HEIGHT / 2,
+      vx: 0,
+      vy: 0,
+      radius: 7,
+      controlledById: null,
+      lastPossessedById: null
+    };
+
+    const initialPlayersList = [...redTeam, ...blueTeam];
+
+    const initialState: MatchState = {
+      scoreRed: 0,
+      scoreBlue: 0,
+      timeRemaining: 180, // 3 minutes
+      isPlaying: false,
+      isMangaPaused: false,
+      currentMangaEvent: null,
+      players: initialPlayersList,
+      ball: initialBall
+    };
+
+    resetToKickoff(initialState.players, initialState.ball);
+    setMatchState(initialState);
+    setMatchLog(["Match ready. Tactical kickoff scheduled."]);
+  }, [squad]);
+
+  // Main Simulation Loop
+  useEffect(() => {
+    if (!matchState || !matchState.isPlaying || matchState.isMangaPaused) return;
+
+    let animFrameId: number;
+
+    const tick = () => {
+      setMatchState(prevState => {
+        if (!prevState) return null;
+
+        // Run ticks according to simulation speed setting (1x, 2x, etc.)
+        let tempState = { ...prevState };
+        
+        // Execute multiple physics calculations per frame for speed up
+        for (let s = 0; s < simSpeed; s++) {
+          tempState = runMatchTick(tempState, handleMangaEventTrigger);
+          
+          // If a tick paused the match for a manga event, abort subsequent sub-ticks
+          if (tempState.isMangaPaused) {
+            break;
+          }
+        }
+
+        return tempState;
+      });
+
+      animFrameId = requestAnimationFrame(tick);
+    };
+
+    animFrameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animFrameId);
+    };
+  }, [matchState?.isPlaying, matchState?.isMangaPaused, simSpeed]);
+
+  // Handle Event Triggers from the match engine
+  const handleMangaEventTrigger = async (event: MangaEvent) => {
+    // Log the event
+    let logMsg = "";
+    if (event.type === 'clutch_shot') {
+      logMsg = `[Clutch Shot] Striker ${event.player.name} fires a shot with ${event.goalProbability}% goal probability!`;
+    } else if (event.type === 'setup') {
+      logMsg = `[Setup] Midfielder ${event.player.name} slides a key pass to ${event.secondaryPlayer?.name}!`;
+    } else if (event.type === 'breakdown') {
+      logMsg = `[Breakdown] Defender ${event.player.name} fails tackle at low stamina, letting ${event.secondaryPlayer?.name} break through!`;
+    }
+
+    setMatchLog(prev => [logMsg, ...prev].slice(0, 30));
+    setMangaEvent(event);
+    setIsDialogueLoading(true);
+
+    // Call the Gemini API to get actual LLM-generated dialogue
+    try {
+      const res = await fetch('/api/dialogue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerName: event.player.name,
+          personaTrait: event.player.trait,
+          eventType: event.type,
+          currentScore: `${matchState?.scoreRed ?? 0}-${matchState?.scoreBlue ?? 0}`,
+          matchTime: matchState?.timeRemaining ?? 180
+        })
+      });
+      const data = await res.json();
+      setGeneratedDialogue(data.dialogue || "Out of my way!");
+    } catch (e) {
+      setGeneratedDialogue("This is my moment!");
+    } finally {
+      setIsDialogueLoading(false);
+    }
+  };
+
+  // Close manga overlay and resume game
+  const handleCloseManga = () => {
+    setMangaEvent(null);
+    setGeneratedDialogue('');
+    setMatchState(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        isMangaPaused: false,
+        currentMangaEvent: null
+      };
+    });
+  };
+
+  // Render Pitch on Canvas
+  useEffect(() => {
+    if (!matchState) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear Canvas
+    ctx.clearRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    // 1. Draw Field Boundary Background
+    ctx.fillStyle = '#06080e'; // Sleek dark pitch background
+    ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    // Draw field borders
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(PITCH_MARGIN, PITCH_MARGIN, FIELD_WIDTH - PITCH_MARGIN * 2, FIELD_HEIGHT - PITCH_MARGIN * 2);
+
+    // Center Line
+    ctx.beginPath();
+    ctx.moveTo(FIELD_WIDTH / 2, PITCH_MARGIN);
+    ctx.lineTo(FIELD_WIDTH / 2, FIELD_HEIGHT - PITCH_MARGIN);
+    ctx.stroke();
+
+    // Center Circle
+    ctx.beginPath();
+    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 70, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Center Spot
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Penalty Boxes
+    // Left Box
+    ctx.strokeRect(PITCH_MARGIN, FIELD_HEIGHT / 2 - 100, 110, 200);
+    // Right Box
+    ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN - 110, FIELD_HEIGHT / 2 - 100, 110, 200);
+
+    // Goals (Draw heavy gates)
+    ctx.lineWidth = 4;
+    // Left Goal (Blue post)
+    ctx.strokeStyle = '#252b45';
+    ctx.strokeRect(PITCH_MARGIN - 15, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
+    // Right Goal (Red post)
+    ctx.strokeRect(FIELD_WIDTH - PITCH_MARGIN, GOAL_Y_TOP, 15, GOAL_Y_BOTTOM - GOAL_Y_TOP);
+
+    // 2. Draw Players
+    matchState.players.forEach(player => {
+      const isRed = player.side === 'red';
+      const traitGlow = getTraitColor(player.trait);
+
+      // Trait glowing aura
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = traitGlow;
+
+      ctx.fillStyle = traitGlow;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 17, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Clear shadows for player body
+      ctx.shadowBlur = 0;
+
+      // Base Circle
+      ctx.fillStyle = isRed ? '#230b42' : '#072e42'; // Dark theme team coloring
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Text Initials (Player Name first letter)
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Role suffix
+      const role = getRoleFromIndex(matchState.players.indexOf(player) % 5);
+      ctx.fillText(player.name.substring(0, 2).toUpperCase(), player.x, player.y - 1);
+      
+      // Mini role tag above player
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '7px monospace';
+      ctx.fillText(role, player.x, player.y + 7);
+
+      // Draw Stamina Bar underneath player circle
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(player.x - 12, player.y + 19, 24, 3);
+      const staminaWidth = (player.currentStamina / 100) * 24;
+      ctx.fillStyle = player.currentStamina < 25 ? '#ff3b30' : 'var(--neon-cyan)';
+      ctx.fillRect(player.x - 12, player.y + 19, staminaWidth, 3);
+    });
+
+    // 3. Draw Ball
+    const ball = matchState.ball;
+    
+    // Draw ball glow
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ffffff';
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowBlur = 0; // Reset shadow
+
+    // Small black panels on ball (visual detailing)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+  }, [matchState]);
+
+  // Read trait custom colors
+  const getTraitColor = (trait: string) => {
+    switch (trait) {
+      case 'Arrogant': return 'var(--color-arrogant)';
+      case 'Calculative': return 'var(--neon-cyan)';
+      case 'Panic-Prone': return 'var(--color-panic)';
+      case 'Maverick': return 'var(--color-maverick)';
+      case 'Team-First': return 'var(--color-team)';
+      default: return '#ffffff';
+    }
+  };
+
+  const handlePlayPause = () => {
+    setMatchState(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        isPlaying: !prev.isPlaying
+      };
+    });
+  };
+
+  const handleResetMatch = () => {
+    setMatchState(prev => {
+      if (!prev) return null;
+      const cleanState = { ...prev };
+      resetToKickoff(cleanState.players, cleanState.ball);
+      cleanState.timeRemaining = 180;
+      cleanState.scoreRed = 0;
+      cleanState.scoreBlue = 0;
+      cleanState.isPlaying = false;
+      cleanState.isMangaPaused = false;
+      cleanState.currentMangaEvent = null;
+      return cleanState;
+    });
+    setMangaEvent(null);
+    setSyncCompleted(false);
+    setSyncHash('');
+    setMatchLog(["Match reset. Kickoff positions re-locked."]);
+  };
+
+  const handleSyncStats = async () => {
+    if (!matchState) return;
+    setIsSyncing(true);
+
+    try {
+      // Find our team (Red side)
+      const ourTeam = matchState.players.filter(p => p.side === 'red');
+      
+      // Simulate blockchain execution or make real MetaMask call if address exists
+      const mockHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      
+      // Wait for parallel simulation to execute in 600ms
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      setSyncHash(mockHash);
+      setSyncCompleted(true);
+      setMatchLog(prev => ["Sync complete! On-chain stats updated successfully.", ...prev]);
+    } catch (e) {
+      alert("Failed syncing stats.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Format Clock display
+  const formatTime = (timeInSeconds: number) => {
+    const mins = Math.floor(timeInSeconds / 60);
+    const secs = Math.floor(timeInSeconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const isGameOver = matchState ? matchState.timeRemaining <= 0 : false;
+
+  return (
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px 20px' }}>
+      
+      {/* Scoreboard Panel */}
+      {matchState && (
+        <div className="glass-panel" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginBottom: '20px',
+          padding: '15px 30px'
+        }}>
+          {/* Red Team */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ 
+              width: '12px', 
+              height: '12px', 
+              borderRadius: '50%', 
+              backgroundColor: 'var(--monad-purple)',
+              boxShadow: '0 0 10px var(--monad-purple)'
+            }} />
+            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '1px' }}>SQUAD ALPHA (RED)</span>
+          </div>
+
+          {/* Core Score/Clock */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              fontSize: '44px', 
+              fontFamily: 'var(--font-manga)', 
+              letterSpacing: '3px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '15px'
+            }}>
+              <span>{matchState.scoreRed}</span>
+              <span style={{ color: '#444c66', fontSize: '32px' }}>-</span>
+              <span>{matchState.scoreBlue}</span>
+            </div>
+            <div style={{ 
+              fontSize: '14px', 
+              fontFamily: 'monospace', 
+              color: isGameOver ? '#ff3b30' : 'var(--neon-cyan)',
+              fontWeight: 600,
+              marginTop: '2px',
+              letterSpacing: '1px'
+            }}>
+              {isGameOver ? "MATCH END" : `CLOCK: ${formatTime(matchState.timeRemaining)}`}
+            </div>
+          </div>
+
+          {/* Blue Team */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexDirection: 'row-reverse' }}>
+            <div style={{ 
+              width: '12px', 
+              height: '12px', 
+              borderRadius: '50%', 
+              backgroundColor: 'var(--neon-cyan)',
+              boxShadow: '0 0 10px var(--neon-cyan)'
+            }} />
+            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '1px' }}>OPPONENTS (BLUE)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Simulator canvas and shake wrapper */}
+      <div 
+        className={mangaEvent?.type === 'clutch_shot' ? 'screen-shake' : ''}
+        style={{ 
+          position: 'relative', 
+          borderRadius: '16px', 
+          overflow: 'hidden', 
+          border: '3px solid #1f253d',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+          backgroundColor: '#06080e',
+          aspectRatio: `${FIELD_WIDTH} / ${FIELD_HEIGHT}`
+        }}
+      >
+        <canvas 
+          ref={canvasRef} 
+          width={FIELD_WIDTH} 
+          height={FIELD_HEIGHT} 
+          style={{ width: '100%', height: '100%', display: 'block' }}
+        />
+
+        {/* Manga breakout overlay injection */}
+        {mangaEvent && (
+          <MangaOverlay 
+            event={mangaEvent}
+            dialogue={generatedDialogue}
+            isLoading={isDialogueLoading}
+            onClose={handleCloseManga}
+          />
+        )}
+      </div>
+
+      {/* Game Loop Controls */}
+      {matchState && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1.2fr 1fr 1fr', 
+          gap: '20px', 
+          marginTop: '25px' 
+        }}>
+          {/* Left panel: buttons */}
+          <div className="glass-panel" style={{ display: 'flex', gap: '10px', padding: '15px', alignItems: 'center' }}>
+            {!isGameOver ? (
+              <button 
+                onClick={handlePlayPause} 
+                className="btn-primary" 
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                {matchState.isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                {matchState.isPlaying ? "PAUSE" : "START SIM"}
+              </button>
+            ) : (
+              <button 
+                onClick={handleSyncStats}
+                disabled={isSyncing || syncCompleted}
+                className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center', background: 'linear-gradient(135deg, #00ffff 0%, #1e90ff 100%)', boxShadow: '0 4px 15px rgba(0,255,255,0.3)' }}
+              >
+                {isSyncing ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={16} />}
+                {syncCompleted ? "SYNCED TO MONAD" : "SYNC POST-MATCH"}
+              </button>
+            )}
+
+            <button 
+              onClick={handleResetMatch} 
+              className="btn-secondary"
+              style={{ padding: '12px' }}
+              title="Reset pitch positions"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          {/* Speed settings */}
+          <div className="glass-panel" style={{ display: 'flex', gap: '8px', padding: '15px', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600, marginRight: '5px' }}>SPEED:</span>
+            {[1, 2, 4].map(speed => (
+              <button
+                key={speed}
+                onClick={() => setSimSpeed(speed)}
+                className={simSpeed === speed ? "btn-primary" : "btn-secondary"}
+                style={{ padding: '6px 12px', fontSize: '12px', flex: 1 }}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+
+          {/* Navigation */}
+          <div className="glass-panel" style={{ display: 'flex', padding: '15px', alignItems: 'center', justifyContent: 'center' }}>
+            <button 
+              onClick={onBackToDashboard} 
+              className="btn-secondary"
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              LEAVE PITCH
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sync complete logs */}
+      {syncCompleted && (
+        <div className="glass-panel" style={{ 
+          marginTop: '20px', 
+          borderColor: 'var(--neon-cyan)', 
+          background: 'rgba(0, 255, 255, 0.02)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          fontSize: '13px'
+        }}>
+          <p style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} /> Post-Match Blockchain Update Successful!
+          </p>
+          <p style={{ color: '#8b949e' }}>
+            Depleted stamina logs and goals/assists values have been calculated, batched, and compiled into a single parallel transaction to optimize Gas overhead on Monad.
+          </p>
+          <p style={{ fontFamily: 'monospace', color: '#5d637f', fontSize: '11px', wordBreak: 'break-all' }}>
+            Transaction Hash: {syncHash}
+          </p>
+        </div>
+      )}
+
+      {/* Live Commentary logs */}
+      <div className="glass-panel" style={{ marginTop: '20px' }}>
+        <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#8b949e', borderBottom: '1px solid #1e243b', paddingBottom: '8px', marginBottom: '10px' }}>
+          LIVE COMMENTARY & MANGA FEEDS
+        </h4>
+        <div style={{ 
+          height: '140px', 
+          overflowY: 'auto', 
+          fontFamily: 'monospace', 
+          fontSize: '12px', 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          color: '#b2bacf'
+        }}>
+          {matchLog.map((log, index) => (
+            <div key={index} style={{ borderLeft: '2px solid rgba(255,255,255,0.05)', paddingLeft: '8px' }}>
+              {log}
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// React loader spinner
+function Loader2({ className, ...props }: any) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`animate-spin ${className}`}
+      {...props}
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
