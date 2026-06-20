@@ -148,11 +148,18 @@ function advanceToPlacement(room) {
 
 function advanceToMatch(room) {
   room.stage = 3;
-  broadcastRoom(room, 'stage_change', {
-    stage: 3,
-    squads: Object.fromEntries(
-      Object.entries(room.players).map(([sid, p]) => [p.address, { squad: p.squad, formation: p.formation }])
-    )
+  // First socket ID is designated as the simulation host
+  const hostSocketId = Object.keys(room.players)[0];
+  room.hostSocketId = hostSocketId;
+  const squads = Object.fromEntries(
+    Object.entries(room.players).map(([sid, p]) => [p.address, { squad: p.squad, formation: p.formation }])
+  );
+  Object.keys(room.players).forEach(sid => {
+    io.to(sid).emit('stage_change', {
+      stage: 3,
+      squads,
+      isHost: sid === hostSocketId,
+    });
   });
   startMatchTimer(room);
   tryAdvanceStageOnChain(room, 3);
@@ -346,6 +353,14 @@ io.on('connection', (socket) => {
       Object.values(room.players).forEach(p => p.ready = false);
       advanceToMatch(room);
     }
+  });
+
+  // ── Match state relay (host → server → all players) ──────────────────────
+  socket.on('match_state_update', ({ matchId, scoreRed, scoreBlue, timeRemaining }) => {
+    const room = getRoom(matchId);
+    if (!room || room.stage !== 3 || room.hostSocketId !== socket.id) return;
+    // Relay authoritative state to all players (including host, so everyone stays in sync)
+    broadcastRoom(room, 'match_state_sync', { scoreRed, scoreBlue, timeRemaining });
   });
 
   // ── Disconnect handling ───────────────────────────────────────────────────

@@ -56,6 +56,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
   const [timer, setTimer] = useState(60);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [matchSquads, setMatchSquads] = useState<{ red: Player[]; blue: Player[] } | null>(null);
+  const [isHost, setIsHost] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [stake, setStake] = useState('0.5');
@@ -102,11 +103,12 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
       setStatusMsg('Opponent found!');
     });
 
-    socket.on('stage_change', ({ stage: s, squads }: any) => {
+    socket.on('stage_change', ({ stage: s, squads, isHost: host }: any) => {
       setStage(s as MatchStage);
       setTimer(s === 1 ? 60 : s === 2 ? 60 : 180);
       setFormationSubmitted(false);
       if (s === 3 && squads) {
+        setIsHost(!!host);
         // Build Player arrays from squads for PitchView
         const addresses = Object.keys(squads);
         const myAddr = walletAddress.toLowerCase();
@@ -248,6 +250,7 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
     setFormationSubmitted(false);
     setResult(null);
     setMatchSquads(null);
+    setIsHost(false);
     setQueuePosition(null);
     setStatusMsg('');
   }, []);
@@ -311,6 +314,9 @@ export default function MatchView({ walletAddress, provider }: MatchViewProps) {
           myAddress={walletAddress}
           opponentAddress={opponentAddress}
           onBackToDashboard={handlePlayAgain}
+          isHost={isHost}
+          matchId={matchId}
+          socket={socketRef.current}
         />
       )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
+import { Socket } from 'socket.io-client';
 import { Player, Ball, MatchState, MangaEvent, PersonaTrait } from '../types/game';
 import { runMatchTick, resetToKickoff } from '../utils/matchEngine';
 import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } from '../utils/physics';
@@ -12,9 +13,12 @@ interface PitchViewProps {
   myAddress?: string;
   opponentAddress?: string;
   onBackToDashboard: () => void;
+  isHost?: boolean;
+  matchId?: string;
+  socket?: Socket | null;
 }
 
-export default function PitchView({ squad, myAddress, opponentAddress, onBackToDashboard }: PitchViewProps) {
+export default function PitchView({ squad, myAddress, opponentAddress, onBackToDashboard, isHost = false, matchId, socket }: PitchViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mangaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMangaEventTimeRef = useRef<number>(0);
@@ -28,6 +32,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
   const [isDialogueLoading, setIsDialogueLoading] = useState<boolean>(false);
 
   const initializedRef = useRef(false);
+  const hostEmitIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const SLOT_ROLES = ['GK', 'LB', 'RB', 'CDM', 'ST'];
 
@@ -86,6 +91,37 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     return () => clearTimeout(t);
   }, [countdown]);
 
+  // Host: broadcast authoritative score/time to server every second
+  useEffect(() => {
+    if (!isHost || !socket || !matchId || !matchState?.isPlaying) return;
+    hostEmitIntervalRef.current = setInterval(() => {
+      setMatchState(prev => {
+        if (prev) {
+          socket.emit('match_state_update', {
+            matchId,
+            scoreRed: prev.scoreRed,
+            scoreBlue: prev.scoreBlue,
+            timeRemaining: prev.timeRemaining,
+          });
+        }
+        return prev;
+      });
+    }, 1000);
+    return () => {
+      if (hostEmitIntervalRef.current) clearInterval(hostEmitIntervalRef.current);
+    };
+  }, [isHost, socket, matchId, matchState?.isPlaying]);
+
+  // Non-host: sync score/time from server
+  useEffect(() => {
+    if (isHost || !socket) return;
+    const handler = ({ scoreRed, scoreBlue, timeRemaining }: { scoreRed: number; scoreBlue: number; timeRemaining: number }) => {
+      setMatchState(prev => prev ? { ...prev, scoreRed, scoreBlue, timeRemaining } : null);
+    };
+    socket.on('match_state_sync', handler);
+    return () => { socket.off('match_state_sync', handler); };
+  }, [isHost, socket]);
+
   // Main Simulation Loop
   useEffect(() => {
     if (!matchState || !matchState.isPlaying) return;
@@ -116,9 +152,8 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
 
   useEffect(() => {
     return () => {
-      if (mangaTimeoutRef.current) {
-        clearTimeout(mangaTimeoutRef.current);
-      }
+      if (mangaTimeoutRef.current) clearTimeout(mangaTimeoutRef.current);
+      if (hostEmitIntervalRef.current) clearInterval(hostEmitIntervalRef.current);
     };
   }, []);
 
