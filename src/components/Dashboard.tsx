@@ -279,10 +279,11 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                 fontSize: '11px', 
                 padding: '3px 8px', 
                 borderRadius: '12px', 
-                backgroundColor: web3Connected ? 'rgba(0, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                color: web3Connected ? 'var(--neon-cyan)' : '#8b949e',
-                fontWeight: 600,
-                textTransform: 'uppercase'
+                backgroundColor: web3Connected ? 'rgba(0, 143, 58, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                color: web3Connected ? 'var(--fifa-green-text)' : '#555555',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                border: '1.5px solid #000000'
               }}>
                 {web3Connected ? "MetaMask Active" : "Sandbox Mode"}
               </span>
@@ -316,7 +317,7 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: '13px', color: '#8b949e', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.5 }}>
                   Connect your MetaMask to deploy/mint direct to Monad Testnet, or play in <strong>Sandbox Mode</strong> with fast instant mock updates.
                 </p>
                 {isMMInstalled ? (
@@ -350,7 +351,7 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
               <h3 style={{ fontSize: '18px', fontWeight: 600 }}>LLM Footballer Persona Mapper</h3>
             </div>
 
-            <p style={{ fontSize: '13px', color: '#8b949e', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.5 }}>
               Type the name of any top football player. Our AI will analyze their real-world persona and map their stats and comic traits for the simulator.
             </p>
 
@@ -412,7 +413,7 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                   </div>
                 </div>
 
-                <p style={{ fontSize: '13px', fontStyle: 'italic', color: '#b3b9c9', lineHeight: 1.4 }}>
+                <p style={{ fontSize: '13px', fontStyle: 'italic', color: '#222222', lineHeight: 1.4 }}>
                   &ldquo;{generatedProfile.reasoning}&rdquo;
                 </p>
 
@@ -450,18 +451,20 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
             {/* Transaction feedback logs */}
             {txLog && (
               <div style={{ 
-                backgroundColor: '#07090f', 
-                border: '1px solid #1a2035', 
+                backgroundColor: '#ffffff', 
+                border: '3px solid #000000', 
                 padding: '15px', 
-                borderRadius: '8px',
-                fontSize: '12px'
+                borderRadius: '0px',
+                boxShadow: '4px 4px 0px #000000',
+                fontSize: '12px',
+                color: '#000000'
               }}>
-                <p style={{ color: '#8b949e', fontWeight: 600, marginBottom: '5px' }}>Transaction Log:</p>
-                <p style={{ color: '#00ffcc', marginBottom: '8px' }}>{txLog.status}</p>
+                <p style={{ color: '#000000', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '5px' }}>Transaction Log:</p>
+                <p style={{ color: 'var(--fifa-green-text)', fontWeight: 'bold', marginBottom: '8px' }}>{txLog.status}</p>
                 {txLog.latency && (
-                  <p style={{ color: '#ffaa00', marginBottom: '8px' }}>Confirmation Latency: <strong>{txLog.latency}ms</strong></p>
+                  <p style={{ color: '#d47a00', marginBottom: '8px' }}>Confirmation Latency: <strong>{txLog.latency}ms</strong></p>
                 )}
-                <p style={{ color: '#8b949e', fontFamily: 'monospace', wordBreak: 'break-all' }}>Hash: {txLog.hash}</p>
+                <p style={{ color: '#555555', fontFamily: 'monospace', wordBreak: 'break-all' }}>Hash: {txLog.hash}</p>
               </div>
             )}
           </div>
@@ -497,15 +500,16 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
               flexDirection: 'column', 
               justifyContent: 'center', 
               alignItems: 'center',
-              border: '2px dashed rgba(255,255,255,0.05)',
-              borderRadius: '12px',
+              border: '3px dashed #000000',
+              borderRadius: '0px',
               padding: '40px',
-              color: '#5d637f',
-              textAlign: 'center'
+              color: '#333333',
+              textAlign: 'center',
+              backgroundColor: '#ffffff'
             }}>
-              <Cpu size={40} style={{ marginBottom: '15px', color: '#252b45' }} />
-              <p style={{ fontSize: '14px', marginBottom: '8px' }}>Locker is empty.</p>
-              <p style={{ fontSize: '12px', maxWidth: '300px' }}>
+              <Cpu size={40} style={{ marginBottom: '15px', color: '#000000' }} />
+              <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>Locker is empty.</p>
+              <p style={{ fontSize: '12px', maxWidth: '300px', color: '#555555' }}>
                 Use the generator on the left to map real-world superstars, or click &ldquo;Auto-Fill Stars&rdquo; to populate a mock team.
               </p>
             </div>
@@ -547,7 +551,7 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                     }} />
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{player.name}</div>
-                      <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: '#555555', marginTop: '2px' }}>
                         Pos: {index === 0 ? 'GK' : index === 1 ? 'DF Left' : index === 2 ? 'DF Right' : index === 3 ? 'MF' : 'FW'} | Trait: <strong style={{ color: getTraitColor(player.trait) }}>{player.trait}</strong>
                       </div>
                     </div>
@@ -555,14 +559,14 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     {/* Stats summary */}
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#8b949e' }}>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#000000', fontWeight: 'bold' }}>
                       <span>S:{player.speed}</span>
                       <span>P:{player.passing}</span>
                       <span>H:{player.shooting}</span>
                       <span>D:{player.defense}</span>
                     </div>
 
-                    <span style={{ fontSize: '11px', color: '#5d637f' }}>
+                    <span style={{ fontSize: '11px', color: '#333333', fontWeight: 'bold' }}>
                       Token #{player.tokenId ? player.tokenId.toString().slice(-4) : 'MOCK'}
                     </span>
 
@@ -602,18 +606,21 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
 
       </div>
 
-      {/* Dynamic NFT on-chain contract highlight banner */}
       <div className="glass-panel" style={{ 
         display: 'flex', 
         alignItems: 'center', 
         gap: '20px', 
-        background: 'linear-gradient(135deg, rgba(138, 43, 226, 0.05) 0%, rgba(0, 255, 255, 0.05) 100%)',
-        borderColor: 'rgba(138, 43, 226, 0.15)'
+        background: '#ffffff',
+        borderColor: '#000000',
+        border: '3px solid #000000',
+        borderRadius: '0px',
+        boxShadow: '4px 4px 0px #000000',
+        color: '#000000'
       }}>
-        <Cpu size={40} style={{ color: 'var(--monad-purple)', flexShrink: 0 }} />
+        <Cpu size={40} style={{ color: 'var(--border-black)', flexShrink: 0 }} />
         <div>
-          <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>On-Chain Dynamic SVGs and Metadata</h4>
-          <p style={{ fontSize: '13px', color: '#8b949e', lineHeight: 1.4 }}>
+          <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>On-Chain Dynamic SVGs and Metadata</h4>
+          <p style={{ fontSize: '13px', color: '#333333', lineHeight: 1.4 }}>
             Manga-Mon characters store stats directly in EVM memory. When minted, the Solidity contract dynamically constructs an SVG image showing their current speed, passing power, goals, and glow-aura directly within the metadata. When matches resolve, stats update directly on-chain.
           </p>
         </div>

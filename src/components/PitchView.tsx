@@ -529,7 +529,7 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
           {/* Speed settings */}
           <div className="glass-panel" style={{ display: 'flex', gap: '8px', padding: '15px', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600, marginRight: '5px' }}>SPEED:</span>
+            <span style={{ fontSize: '12px', color: '#000000', fontWeight: 800, marginRight: '5px' }}>SPEED:</span>
             {[1, 2, 4].map(speed => (
               <button
                 key={speed}
@@ -559,20 +559,21 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
       {syncCompleted && (
         <div className="glass-panel" style={{ 
           marginTop: '20px', 
-          borderColor: 'var(--neon-cyan)', 
-          background: 'rgba(0, 255, 255, 0.02)',
+          borderColor: '#000000', 
+          background: '#ffffff',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          fontSize: '13px'
+          fontSize: '13px',
+          color: '#000000'
         }}>
-          <p style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <p style={{ color: 'var(--fifa-green-text)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle2 size={16} /> Post-Match Blockchain Update Successful!
           </p>
-          <p style={{ color: '#8b949e' }}>
+          <p style={{ color: '#222222' }}>
             Depleted stamina logs and goals/assists values have been calculated, batched, and compiled into a single parallel transaction to optimize Gas overhead on Monad.
           </p>
-          <p style={{ fontFamily: 'monospace', color: '#5d637f', fontSize: '11px', wordBreak: 'break-all' }}>
+          <p style={{ fontFamily: 'monospace', color: '#555555', fontSize: '11px', wordBreak: 'break-all', fontWeight: 'bold' }}>
             Transaction Hash: {syncHash}
           </p>
         </div>
@@ -580,7 +581,7 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
       {/* Live Commentary logs */}
       <div className="glass-panel" style={{ marginTop: '20px' }}>
-        <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#8b949e', borderBottom: '1px solid #1e243b', paddingBottom: '8px', marginBottom: '10px' }}>
+        <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#000000', borderBottom: '3px solid #000000', paddingBottom: '8px', marginBottom: '10px' }}>
           LIVE COMMENTARY & MANGA FEEDS
         </h4>
         <div style={{ 
@@ -591,10 +592,11 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
           display: 'flex',
           flexDirection: 'column',
           gap: '6px',
-          color: '#b2bacf'
+          color: '#000000',
+          fontWeight: 'bold'
         }}>
           {matchLog.map((log, index) => (
-            <div key={index} style={{ borderLeft: '2px solid rgba(255,255,255,0.05)', paddingLeft: '8px' }}>
+            <div key={index} style={{ borderLeft: '3px solid #000000', paddingLeft: '8px' }}>
               {log}
             </div>
           ))}
