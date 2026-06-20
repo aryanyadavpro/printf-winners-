@@ -13,103 +13,117 @@ interface MatchResultProps {
 
 export default function MatchResult({ result, myAddress, stake, onPlayAgain }: MatchResultProps) {
   const isWinner = result.winner.toLowerCase() === myAddress.toLowerCase();
-  const payout = (parseFloat(stake) * 2 * 0.975).toFixed(3);
+  const payout   = (parseFloat(stake || '0') * 2 * 0.975).toFixed(3);
 
   return (
-    <div style={{
-      maxWidth: '520px', margin: '0 auto', padding: '60px 20px',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px',
-      textAlign: 'center',
-    }}>
+    <div style={{ maxWidth: '560px', margin: '0 auto', padding: '48px 20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-      {/* Result banner */}
+      {/* ── RESULT HERO ── */}
       <div style={{
-        width: '100%', padding: '32px',
-        borderRadius: '16px',
-        background: isWinner
-          ? 'linear-gradient(135deg, rgba(0,255,200,0.08), rgba(138,43,226,0.12))'
-          : 'linear-gradient(135deg, rgba(255,59,48,0.08), rgba(255,0,85,0.05))',
-        border: `2px solid ${isWinner ? 'rgba(0,255,200,0.3)' : 'rgba(255,59,48,0.3)'}`,
+        background: isWinner ? 'var(--fifa-blue)' : '#111',
+        border: '4px solid #000',
+        boxShadow: 'var(--shadow-xl)',
+        padding: '40px 32px',
+        textAlign: 'center',
+        position: 'relative', overflow: 'hidden',
       }}>
-        <Trophy size={48} style={{ color: isWinner ? '#FFD700' : '#5d637f', marginBottom: '16px' }} />
+        {/* bg dots */}
+        <div style={{ position:'absolute', inset:0, opacity:0.07, backgroundImage:'radial-gradient(circle, #fff 1.5px, transparent 1.5px)', backgroundSize:'24px 24px', pointerEvents:'none' }} />
 
-        <h1 style={{
-          fontFamily: 'var(--font-manga)',
-          fontSize: '52px',
-          letterSpacing: '3px',
-          color: isWinner ? 'var(--neon-cyan)' : '#ff3b30',
-          textShadow: isWinner ? '0 0 20px rgba(0,255,200,0.5)' : '0 0 20px rgba(255,59,48,0.4)',
-          marginBottom: '8px',
-        }}>
-          {isWinner ? 'VICTORY' : 'DEFEAT'}
-        </h1>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* FIFA badge */}
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:'16px' }}>
+            <div style={{ background:'var(--fifa-gold-light)', border:'3px solid #000', boxShadow:'3px 3px 0 #000', padding:'2px 10px', fontFamily:'var(--font-display)', fontSize:'12px', letterSpacing:'3px', color:'#000', transform:'rotate(-1deg)' }}>FIFA</div>
+          </div>
 
-        {isWinner && (
-          <div style={{ marginTop: '16px' }}>
-            <div style={{ fontSize: '13px', color: '#8b949e' }}>Prize Pool Transferred</div>
-            <div style={{ fontSize: '36px', fontWeight: 900, color: 'var(--neon-cyan)', marginTop: '4px' }}>
-              +{payout} MON
-            </div>
-            <div style={{ fontSize: '12px', color: '#5d637f', marginTop: '4px' }}>
-              sent to your wallet via Monad smart contract
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <div style={{ background: isWinner ? 'var(--fifa-gold-light)' : '#333', border: '4px solid #000', boxShadow: '6px 6px 0 #000', padding: '16px' }}>
+              <Trophy size={40} strokeWidth={2.5} color={isWinner ? '#000' : '#777'} />
             </div>
           </div>
-        )}
 
-        {!isWinner && (
-          <div style={{ marginTop: '12px', fontSize: '14px', color: '#8b949e' }}>
-            Better luck next time. Your opponent claimed {payout} MON.
-          </div>
-        )}
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(52px,10vw,80px)',
+            letterSpacing: '4px',
+            color: isWinner ? 'var(--fifa-gold-light)' : 'var(--fifa-red)',
+            WebkitTextStroke: '2px #000',
+            lineHeight: 1,
+            marginBottom: '20px',
+          }}>
+            {isWinner ? 'VICTORY' : 'DEFEAT'}
+          </h1>
+
+          {isWinner ? (
+            <div style={{ background: 'rgba(255,255,255,0.12)', border: '3px solid rgba(255,255,255,0.3)', padding: '16px 24px' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '2px', color: 'rgba(255,255,255,0.7)' }}>PRIZE POOL TRANSFERRED</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '42px', color: 'var(--fifa-gold-light)', lineHeight: 1, marginTop: '4px' }}>
+                +{payout} <span style={{ fontSize: '18px' }}>MON</span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-primary)', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', marginTop: '6px' }}>
+                settled on-chain via Monad smart contract
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontFamily: 'var(--font-primary)', fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+              Better luck next time.<br />Your opponent claimed <strong style={{ color: '#fff' }}>{payout} MON</strong>.
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Score breakdown */}
-      <div className="glass-panel" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#8b949e', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          Squad Power Scores
-        </h3>
+      {/* ── SCORE BREAKDOWN ── */}
+      <div style={{ border: '4px solid #000', boxShadow: 'var(--shadow-md)' }}>
+        <div style={{ background: 'var(--fifa-blue)', borderBottom: '4px solid #000', padding: '12px 20px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', letterSpacing: '2px', color: '#fff' }}>SQUAD POWER SCORES</div>
+        </div>
+
         {result.scores.map((s, i) => {
           const isMe = s.address.toLowerCase() === myAddress.toLowerCase();
           return (
             <div key={s.address} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 14px', borderRadius: '8px',
-              backgroundColor: isMe ? 'rgba(0,255,200,0.06)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${isMe ? 'rgba(0,255,200,0.15)' : 'rgba(255,255,255,0.04)'}`,
+              padding: '16px 20px',
+              background: isMe ? '#E5F7ED' : '#fff',
+              borderBottom: i < result.scores.length - 1 ? '3px solid #000' : undefined,
+              borderLeft: `8px solid ${i === 0 ? 'var(--fifa-gold)' : '#ccc'}`,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '14px' }}>{i === 0 ? '🥇' : '🥈'}</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '13px', color: isMe ? 'var(--neon-cyan)' : '#fff' }}>
-                  {s.address.slice(0, 6)}…{s.address.slice(-4)}
-                  {isMe && <span style={{ marginLeft: '6px', fontSize: '10px', color: '#5d637f' }}>(you)</span>}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  fontFamily: 'var(--font-display)', fontSize: '22px',
+                  color: i === 0 ? 'var(--fifa-gold)' : '#999',
+                }}>
+                  {i === 0 ? '🥇' : '🥈'}
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 800, color: '#000' }}>
+                    {s.address.slice(0, 6)}…{s.address.slice(-4)}
+                  </div>
+                  {isMe && (
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '2px', color: '#00A651', marginTop: '2px' }}>YOU</div>
+                  )}
+                </div>
               </div>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: i === 0 ? '#FFD700' : '#8b949e' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', color: i === 0 ? 'var(--fifa-blue)' : '#999', lineHeight: 1 }}>
                 {s.total.toLocaleString()}
-              </span>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Winner address */}
-      <div style={{ fontSize: '12px', color: '#5d637f' }}>
-        Winner: <span style={{ fontFamily: 'monospace', color: '#8b949e' }}>{result.winner}</span>
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-        <button onClick={onPlayAgain} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '14px', fontSize: '15px', fontFamily: 'var(--font-manga)', letterSpacing: '2px' }}>
-          <RefreshCw size={16} /> PLAY AGAIN
+      {/* ── ACTIONS ── */}
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button onClick={onPlayAgain} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '16px', fontSize: '20px', letterSpacing: '3px' }}>
+          <RefreshCw size={18} strokeWidth={3} /> PLAY AGAIN
         </button>
         <a
           href={`https://testnet.monadexplorer.com/address/${result.winner}`}
-          target="_blank"
-          rel="noreferrer"
+          target="_blank" rel="noreferrer"
           className="btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '14px 18px', fontSize: '13px', textDecoration: 'none' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '16px 20px', fontSize: '14px', textDecoration: 'none' }}
         >
-          <ExternalLink size={14} /> Explorer
+          <ExternalLink size={14} strokeWidth={3} /> Explorer
         </a>
       </div>
     </div>

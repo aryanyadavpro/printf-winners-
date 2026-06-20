@@ -1,8 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { DraftCard, Formation, FORMATION_SLOTS, TIER_COLORS, TRAIT_COLORS } from '../../types/match';
-import { CheckCircle } from 'lucide-react';
+import { DraftCard, Formation, FORMATION_SLOTS } from '../../types/match';
+import { CheckCircle, Lock } from 'lucide-react';
+
+const TIER_COLOR: Record<string, string> = {
+  Legendary: '#C89520',
+  Epic:      '#6d28d9',
+  Rare:      '#0033A0',
+  Common:    '#374151',
+};
+
+const TRAIT_COLOR: Record<string, string> = {
+  'Arrogant':    '#E8001D',
+  'Calculative': '#0033A0',
+  'Panic-Prone': '#555e70',
+  'Maverick':    '#C89520',
+  'Team-First':  '#00A651',
+};
 
 interface PlacementStageProps {
   mySquad: DraftCard[];
@@ -13,79 +28,78 @@ interface PlacementStageProps {
 
 export default function PlacementStage({ mySquad, timer, onSubmitFormation, submitted }: PlacementStageProps) {
   const [formation, setFormation] = useState<Formation>({});
-  const [dragging, setDragging] = useState<DraftCard | null>(null);
+  const [dragging, setDragging]   = useState<DraftCard | null>(null);
 
   const placedIds = new Set(Object.values(formation).map(c => c.id));
-  const unplaced = mySquad.filter(c => !placedIds.has(c.id));
+  const unplaced  = mySquad.filter(c => !placedIds.has(c.id));
+  const allPlaced = Object.keys(formation).length === mySquad.length && mySquad.length === 5;
 
-  const timerColor = timer <= 10 ? '#ff3b30' : timer <= 20 ? '#ffaa00' : 'var(--neon-cyan)';
+  const timerColor = timer <= 10 ? 'var(--fifa-red)' : timer <= 20 ? '#C89520' : '#00A651';
+  const timerBg    = timer <= 10 ? '#FFE5E8' : timer <= 20 ? '#FFF8E0' : '#E5F7ED';
 
-  const handleDropOnSlot = (slotIndex: number) => {
+  const handleDropOnSlot = (i: number) => {
     if (!dragging) return;
-    setFormation(prev => ({ ...prev, [slotIndex]: dragging }));
+    setFormation(prev => ({ ...prev, [i]: dragging }));
     setDragging(null);
   };
 
-  const handleRemoveFromSlot = (slotIndex: number) => {
-    setFormation(prev => {
-      const next = { ...prev };
-      delete next[slotIndex];
-      return next;
-    });
+  const handleRemoveFromSlot = (i: number) => {
+    setFormation(prev => { const n = { ...prev }; delete n[i]; return n; });
   };
 
-  const allPlaced = Object.keys(formation).length === 5;
-
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px 20px' }}>
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '28px 20px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-manga)', fontSize: '28px', letterSpacing: '2px' }}>STAGE 2 — PLACEMENT</h2>
-          <p style={{ fontSize: '12px', color: '#8b949e', marginTop: '2px' }}>Drag players onto your formation slots</p>
+      {/* ── TOP BAR ── */}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', border: '4px solid #000', boxShadow: 'var(--shadow-md)', marginBottom: '24px' }}>
+        <div style={{ background: 'var(--fifa-blue)', padding: '14px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '4px solid #000' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '3px', color: 'rgba(255,255,255,0.6)' }}>STAGE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '22px', letterSpacing: '2px', color: '#fff', lineHeight: 1 }}>02 — PLACEMENT</div>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '42px', fontWeight: 900, fontFamily: 'monospace', color: timerColor, lineHeight: 1 }}>
+        <div style={{ flex: 1, background: '#fff', padding: '14px 20px', display: 'flex', alignItems: 'center', borderRight: '4px solid #000' }}>
+          <p style={{ fontFamily: 'var(--font-primary)', fontSize: '13px', fontWeight: 700, color: '#555' }}>
+            Drag players onto formation slots · click a placed player to remove
+          </p>
+        </div>
+        <div style={{ background: timerBg, padding: '14px 24px', textAlign: 'center', minWidth: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', transition: 'background 0.3s' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '42px', color: timerColor, lineHeight: 1, transition: 'color 0.3s' }}>
             {String(timer).padStart(2, '0')}
           </div>
-          <div style={{ fontSize: '10px', color: '#5d637f' }}>seconds left</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '2px', color: timerColor, opacity: 0.7 }}>SEC</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', gap: '24px' }}>
 
-        {/* Pitch half */}
+        {/* ── PITCH ── */}
         <div
           style={{
             position: 'relative',
-            background: 'linear-gradient(180deg, #0a1a0a 0%, #0d2010 100%)',
-            border: '2px solid rgba(255,255,255,0.08)',
-            borderRadius: '12px',
+            background: 'linear-gradient(180deg, #1a5c2a 0%, #0f3d1a 50%, #0a2e13 100%)',
+            border: '4px solid #000',
+            boxShadow: 'var(--shadow-md)',
             aspectRatio: '3/4',
             overflow: 'hidden',
           }}
           onDragOver={e => e.preventDefault()}
         >
-          {/* Pitch lines */}
-          <div style={{ position: 'absolute', inset: '10px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px' }} />
-          <div style={{ position: 'absolute', left: '10px', right: '10px', top: '50%', height: '1px', backgroundColor: 'rgba(255,255,255,0.08)' }} />
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-            width: '60px', height: '60px', borderRadius: '50%',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }} />
+          {/* Pitch markings */}
+          <div style={{ position: 'absolute', inset: '12px', border: '2px solid rgba(255,255,255,0.25)' }} />
+          <div style={{ position: 'absolute', left: '12px', right: '12px', top: '50%', height: '2px', background: 'rgba(255,255,255,0.2)' }} />
+          <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: '70px', height: '70px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)' }} />
+          {/* Goal box top */}
+          <div style={{ position: 'absolute', top: '12px', left: '30%', right: '30%', height: '12%', border: '2px solid rgba(255,255,255,0.15)', borderTop: 'none' }} />
+          {/* Goal box bottom */}
+          <div style={{ position: 'absolute', bottom: '12px', left: '30%', right: '30%', height: '12%', border: '2px solid rgba(255,255,255,0.15)', borderBottom: 'none' }} />
 
-          {/* YOUR HALF label */}
-          <div style={{
-            position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)',
-            fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', textTransform: 'uppercase',
-          }}>Your Half</div>
+          <div style={{ position: 'absolute', bottom: '6px', left: '50%', transform: 'translateX(-50%)', fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '3px', color: 'rgba(255,255,255,0.3)' }}>
+            YOUR HALF
+          </div>
 
           {/* Formation slots */}
           {FORMATION_SLOTS.map((slot, i) => {
             const card = formation[i];
-            const tierColor = card ? TIER_COLORS[card.tier] : 'rgba(255,255,255,0.15)';
+            const tc   = card ? TIER_COLOR[card.tier] : 'rgba(255,255,255,0.3)';
             return (
               <div
                 key={i}
@@ -95,39 +109,44 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
                 title={card ? `Click to remove ${card.name}` : `Drop ${slot.label} here`}
                 style={{
                   position: 'absolute',
-                  left: `${slot.x * 100}%`,
-                  top: `${slot.y * 100}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: card ? '54px' : '44px',
-                  height: card ? '54px' : '44px',
-                  borderRadius: '50%',
-                  border: `2px ${card ? 'solid' : 'dashed'} ${tierColor}`,
-                  backgroundColor: card ? '#0f111a' : 'rgba(255,255,255,0.03)',
+                  left: `${slot.x * 100}%`, top: `${slot.y * 100}%`,
+                  transform: 'translate(-50%,-50%)',
+                  width: card ? '58px' : '46px',
+                  height: card ? '58px' : '46px',
+                  border: `3px ${card ? 'solid' : 'dashed'} ${tc}`,
+                  background: card ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.05)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   cursor: card ? 'pointer' : 'default',
-                  boxShadow: card ? `0 0 14px ${tierColor}66` : 'none',
-                  transition: 'all 0.15s',
-                  zIndex: 2,
+                  boxShadow: card ? `0 0 0 3px #000, 4px 4px 0 #000` : 'none',
+                  transition: 'all 0.15s', zIndex: 2,
                 }}
               >
                 {card ? (
                   <>
-                    <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: TRAIT_COLORS[card.trait] || '#fff' }} />
-                    <div style={{ fontSize: '7px', color: '#fff', marginTop: '2px', textAlign: 'center', lineHeight: 1.1, maxWidth: '50px', overflow: 'hidden' }}>
+                    <div style={{ width: '14px', height: '14px', background: TRAIT_COLOR[card.trait] || '#fff', border: '2px solid #fff' }} />
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '7px', color: '#fff', marginTop: '3px', textAlign: 'center', lineHeight: 1.1, maxWidth: '52px', overflow: 'hidden', letterSpacing: '0.5px' }}>
                       {card.name.split(' ')[0]}
                     </div>
                   </>
                 ) : (
-                  <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>{slot.label}</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px' }}>{slot.label}</span>
                 )}
               </div>
             );
           })}
         </div>
 
-        {/* Unplaced cards sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <p style={{ fontSize: '12px', color: '#8b949e' }}>Drag onto pitch:</p>
+        {/* ── SIDEBAR ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '2px', color: '#555' }}>
+            DRAG ONTO PITCH
+          </div>
+
+          {unplaced.length === 0 && !submitted && (
+            <div style={{ background: '#E5F7ED', border: '3px solid #000', boxShadow: '3px 3px 0 #000', padding: '10px 14px', fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '1.5px', color: '#00A651' }}>
+              ✓ ALL PLACED
+            </div>
+          )}
 
           {unplaced.map(card => (
             <div
@@ -136,18 +155,20 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
               onDragStart={() => setDragging(card)}
               onDragEnd={() => setDragging(null)}
               style={{
-                backgroundColor: '#0f111a',
-                border: `1.5px solid ${TIER_COLORS[card.tier]}55`,
-                borderRadius: '8px',
-                padding: '10px',
+                background: '#fff', border: '3px solid #000',
+                borderLeft: `8px solid ${TIER_COLOR[card.tier]}`,
+                boxShadow: '4px 4px 0 #000',
+                padding: '10px 12px',
                 cursor: 'grab',
-                opacity: dragging?.id === card.id ? 0.5 : 1,
-                transition: 'opacity 0.1s',
+                opacity: dragging?.id === card.id ? 0.45 : 1,
+                transition: 'opacity 0.1s, transform 0.1s',
               }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translate(-2px,-2px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; }}
             >
-              <div style={{ fontSize: '12px', fontWeight: 700 }}>{card.name}</div>
-              <div style={{ fontSize: '10px', color: TRAIT_COLORS[card.trait], textTransform: 'uppercase', marginTop: '2px' }}>{card.trait}</div>
-              <div style={{ display: 'flex', gap: '6px', marginTop: '6px', fontSize: '10px', color: '#8b949e' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', letterSpacing: '0.5px', color: '#000', lineHeight: 1 }}>{card.name}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '1.5px', color: TRAIT_COLOR[card.trait] || '#555', marginTop: '4px' }}>{card.trait.toUpperCase()}</div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontFamily: 'var(--font-display)', fontSize: '11px', color: '#555' }}>
                 <span>S:{card.speed}</span>
                 <span>P:{card.passing}</span>
                 <span>H:{card.shooting}</span>
@@ -155,25 +176,22 @@ export default function PlacementStage({ mySquad, timer, onSubmitFormation, subm
             </div>
           ))}
 
-          {unplaced.length === 0 && !submitted && (
-            <p style={{ fontSize: '11px', color: '#00ffcc', textAlign: 'center', padding: '8px' }}>All placed!</p>
-          )}
-
           <button
             onClick={() => onSubmitFormation(formation)}
             disabled={!allPlaced || submitted}
             className="btn-primary"
-            style={{ justifyContent: 'center', padding: '12px', marginTop: '8px', fontSize: '13px' }}
+            style={{ justifyContent: 'center', padding: '14px', fontSize: '16px', letterSpacing: '2px', marginTop: 'auto' }}
           >
             {submitted
-              ? <><CheckCircle size={14} /> Locked In</>
-              : 'Lock Formation'}
+              ? <><Lock size={15} strokeWidth={3} /> LOCKED IN</>
+              : <><CheckCircle size={15} strokeWidth={3} /> LOCK FORMATION</>
+            }
           </button>
 
           {submitted && (
-            <p style={{ fontSize: '11px', color: '#8b949e', textAlign: 'center' }}>
-              Waiting for opponent…
-            </p>
+            <div style={{ background: 'var(--bg-alt)', border: '3px solid #000', padding: '10px', textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '1.5px', color: '#555' }}>
+              WAITING FOR OPPONENT…
+            </div>
           )}
         </div>
       </div>

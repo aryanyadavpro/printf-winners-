@@ -26,7 +26,11 @@ export default function Home() {
   };
 
   // Once wallet is connected (or sandbox skip), go straight to match
-  const enterSandbox = () => setWalletAddress('sandbox');
+  const enterSandbox = () => {
+    // Random guest ID so two sandbox tabs don't collide in the queue
+    const guestId = `guest_${Math.random().toString(36).slice(2, 8)}`;
+    setWalletAddress(guestId);
+  };
 
   const inMatch = walletAddress !== '';
 
