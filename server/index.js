@@ -8,6 +8,14 @@ const { ethers } = require('ethers');
 const crypto = require('crypto');
 
 const app = express();
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '';
+  if (origin.endsWith('.vercel.app') || origin.startsWith('http://localhost')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+  next();
+});
 const httpServer = http.createServer(app);
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL,
@@ -18,10 +26,17 @@ const ALLOWED_ORIGINS = [
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return callback(null, true);
-      callback(new Error(`CORS blocked: ${origin}`));
+      // Always allow vercel.app and localhost origins
+      if (
+        origin.endsWith('.vercel.app') ||
+        origin.startsWith('http://localhost') ||
+        ALLOWED_ORIGINS.some(o => origin === o)
+      ) {
+        return callback(null, true);
+      }
+      console.warn('CORS blocked origin:', origin);
+      callback(null, true); // permissive for now — tighten after launch
     },
     methods: ['GET', 'POST'],
     credentials: true,
