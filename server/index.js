@@ -1,4 +1,6 @@
+// Load .env.local for local dev; on Railway env vars are injected directly
 require('dotenv').config({ path: '.env.local' });
+require('dotenv').config(); // fallback to .env if .env.local missing
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -7,8 +9,23 @@ const crypto = require('crypto');
 
 const app = express();
 const httpServer = http.createServer(app);
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+].filter(Boolean);
+
 const io = new Server(httpServer, {
-  cors: { origin: process.env.FRONTEND_URL || 'http://localhost:3000', methods: ['GET', 'POST'] }
+  cors: {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return callback(null, true);
+      callback(new Error(`CORS blocked: ${origin}`));
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
 const PORT = process.env.PORT || 4000;
@@ -57,7 +74,6 @@ function createRoom(matchId, player1SocketId, player1Address, stake) {
     players: {
       [player1SocketId]: { address: player1Address, ready: false, squad: [], formation: {}, points: 10 },
     },
-    lockedCards: new Set(), // card ids locked by either player
     timers: {},
     matchResult: null,
   };
@@ -266,22 +282,17 @@ io.on('connection', (socket) => {
     if (!room || room.stage !== 1) return;
     const player = room.players[socket.id];
     if (!player) return;
-    if (room.lockedCards.has(cardId)) { socket.emit('pick_rejected', { cardId, reason: 'already_taken' }); return; }
 
     const card = CARD_POOL.find(c => c.id === cardId);
     if (!card) return;
+    if (player.squad.some(c => c.id === cardId)) { socket.emit('pick_rejected', { cardId, reason: 'already_picked' }); return; }
     if (player.points < card.cost) { socket.emit('pick_rejected', { cardId, reason: 'insufficient_points' }); return; }
     if (player.squad.length >= 5) { socket.emit('pick_rejected', { cardId, reason: 'squad_full' }); return; }
 
     player.squad.push(card);
     player.points -= card.cost;
-    room.lockedCards.add(cardId);
 
     socket.emit('pick_confirmed', { card, remainingPoints: player.points, squadSize: player.squad.length });
-    // Tell opponent this card is now unavailable
-    Object.keys(room.players).forEach(sid => {
-      if (sid !== socket.id) io.to(sid).emit('card_locked', { cardId });
-    });
 
     // If both players have 5 cards, advance immediately
     const allDone = Object.values(room.players).every(p => p.squad.length === 5);
@@ -289,6 +300,22 @@ io.on('connection', (socket) => {
       clearInterval(room.timers.draft);
       advanceToPlacement(room);
     }
+  });
+
+  // ── Draft stage: unpick a card ────────────────────────────────────────────
+  socket.on('unpick_card', ({ matchId, cardId }) => {
+    const room = getRoom(matchId);
+    if (!room || room.stage !== 1) return;
+    const player = room.players[socket.id];
+    if (!player) return;
+
+    const idx = player.squad.findIndex(c => c.id === cardId);
+    if (idx === -1) return;
+
+    const [card] = player.squad.splice(idx, 1);
+    player.points += card.cost;
+
+    socket.emit('unpick_confirmed', { cardId, remainingPoints: player.points, squadSize: player.squad.length });
   });
 
   // ── Placement stage: submit formation ────────────────────────────────────
