@@ -339,6 +339,13 @@ function makeBallTexture(): THREE.CanvasTexture {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ThreePitchRenderer({ players, ball, imageCache }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
+
+  // Live data refs — updated every render, read every animation frame
+  const playersRef = useRef<Player[]>(players);
+  const ballRef    = useRef<Ball>(ball);
+  playersRef.current = players;
+  ballRef.current    = ball;
+
   const stateRef = useRef<{
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
@@ -347,7 +354,8 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
     ballMesh: THREE.Mesh;
     ballGlowRing: THREE.Mesh;
     animId: number;
-    cameraTargetX: number;
+    camTargetX: number;
+    ballRotY: number;
   } | null>(null);
 
   // ── Init Three.js once ────────────────────────────────────────────────────
@@ -429,15 +437,69 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
     glowRing.position.y = 0.18;
     scene.add(glowRing);
 
-    // ── Animate ───────────────────────────────────────────────────────────
-    let cameraTargetX = 0;
+    // ── Animation loop — reads live refs every frame ──────────────────────
     const animate = () => {
       const id = requestAnimationFrame(animate);
-      stateRef.current!.animId = id;
-      // Smooth camera pan following ball X
-      cameraTargetX += (stateRef.current!.cameraTargetX - cameraTargetX) * 0.04;
-      camera.position.x = cameraTargetX * 0.35;
-      camera.lookAt(cameraTargetX * 0.25, 0, 0);
+      if (!stateRef.current) return;
+      stateRef.current.animId = id;
+
+      const cur = stateRef.current;
+      const livePlayers = playersRef.current;
+      const liveBall    = ballRef.current;
+
+      // Update player mesh positions from live ref
+      const redList  = livePlayers.filter(p => p.side === 'red');
+      const blueList = livePlayers.filter(p => p.side === 'blue');
+      let hasCarrier = false;
+
+      livePlayers.forEach(player => {
+        const teamList = player.side === 'red' ? redList : blueList;
+        const idx  = teamList.indexOf(player);
+        const role = SLOT_ROLES[idx] ?? '?';
+
+        let group = cur.playerGroups.get(player.id);
+        if (!group) {
+          group = createPlayerGroup(player, role, imageCache);
+          scene.add(group);
+          cur.playerGroups.set(player.id, group);
+        }
+
+        // Smooth position interpolation (lerp toward target)
+        const tx = toX(player.x), tz = toZ(player.y);
+        group.position.x += (tx - group.position.x) * 0.25;
+        group.position.z += (tz - group.position.z) * 0.25;
+
+        // Face direction of movement
+        const dx = tx - group.position.x;
+        const dz = tz - group.position.z;
+        if (Math.abs(dx) + Math.abs(dz) > 0.05) {
+          group.rotation.y = Math.atan2(dx, dz);
+        }
+
+        if (player.hasBall) {
+          hasCarrier = true;
+          cur.ballGlowRing.position.set(group.position.x, 0.18, group.position.z);
+          (cur.ballGlowRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
+        }
+      });
+
+      if (!hasCarrier) {
+        (cur.ballGlowRing.material as THREE.MeshBasicMaterial).opacity = 0;
+      }
+
+      // Update ball position
+      const bx = toX(liveBall.x), bz = toZ(liveBall.y);
+      cur.ballMesh.position.x += (bx - cur.ballMesh.position.x) * 0.3;
+      cur.ballMesh.position.z += (bz - cur.ballMesh.position.z) * 0.3;
+      cur.ballMesh.position.y = 0.55 + Math.sin(Date.now() / 120) * 0.08; // subtle bounce
+      cur.ballRotY += 0.06;
+      cur.ballMesh.rotation.y = cur.ballRotY;
+
+      // Camera smooth pan following ball X
+      cur.camTargetX += (bx * 0.3 - cur.camTargetX) * 0.03;
+      camera.position.x = cur.camTargetX;
+      camera.lookAt(cur.camTargetX * 0.5, 0, 0);
+
       renderer.render(scene, camera);
     };
     const firstId = requestAnimationFrame(animate);
@@ -458,7 +520,8 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
       ballMesh,
       ballGlowRing: glowRing,
       animId: firstId,
-      cameraTargetX: 0,
+      camTargetX: 0,
+      ballRotY: 0,
     };
 
     return () => {
@@ -470,51 +533,7 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
     };
   }, []);
 
-  // ── Sync players each render ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!stateRef.current) return;
-    const { scene, playerGroups } = stateRef.current;
-    const redPlayers  = players.filter(p => p.side === 'red');
-    const bluePlayers = players.filter(p => p.side === 'blue');
-
-    players.forEach(player => {
-      const teamList = player.side === 'red' ? redPlayers : bluePlayers;
-      const idx = teamList.indexOf(player);
-      const role = SLOT_ROLES[idx] ?? '?';
-
-      let group = playerGroups.get(player.id);
-      if (!group) {
-        group = createPlayerGroup(player, role, imageCache);
-        scene.add(group);
-        playerGroups.set(player.id, group);
-      }
-
-      group.position.set(toX(player.x), 0, toZ(player.y));
-
-      // Gold ring on ball carrier
-      if (player.hasBall && stateRef.current) {
-        stateRef.current.ballGlowRing.position.set(toX(player.x), 0.18, toZ(player.y));
-        (stateRef.current.ballGlowRing.material as THREE.MeshBasicMaterial).opacity = 0.85;
-      }
-    });
-
-    const hasCarrier = players.some(p => p.hasBall);
-    if (!hasCarrier && stateRef.current) {
-      (stateRef.current.ballGlowRing.material as THREE.MeshBasicMaterial).opacity = 0;
-    }
-  }, [players, imageCache]);
-
-  // ── Sync ball each render ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!stateRef.current) return;
-    const { ballMesh } = stateRef.current;
-    const bx = toX(ball.x);
-    const bz = toZ(ball.y);
-    ballMesh.position.set(bx, 0.55, bz);
-    ballMesh.rotation.x += 0.05;
-    // Camera follows ball X
-    stateRef.current.cameraTargetX = bx;
-  }, [ball]);
+  // Player groups created lazily in animation loop — no useEffect sync needed
 
   return (
     <div
