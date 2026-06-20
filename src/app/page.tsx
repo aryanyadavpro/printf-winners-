@@ -1,15 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { BrowserProvider } from 'ethers';
 import { Wallet, ShieldAlert, Zap } from 'lucide-react';
 import { connectMetaMask, isMetaMaskAvailable } from '../utils/web3';
-import MatchView from '../components/match/MatchView';
+
+// MatchView uses socket.io, ethers, and canvas — all browser-only APIs.
+// ssr:false prevents Next.js from server-rendering it, fixing React hydration error #418.
+const MatchView = dynamic(() => import('../components/match/MatchView'), { ssr: false });
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState('');
   const [provider, setProvider]           = useState<BrowserProvider | null>(null);
-  const [isMMInstalled]                   = useState(() => typeof window !== 'undefined' && isMetaMaskAvailable());
+  const [isMMInstalled]                   = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return isMetaMaskAvailable();
+  });
   const [connecting, setConnecting]       = useState(false);
 
   const handleConnect = async () => {
