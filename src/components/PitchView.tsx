@@ -55,7 +55,7 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
       .finally(() => { pendingRequests.current.delete(playerId); });
   };
 
-  const SLOT_ROLES = ['GK','LB','CB1','CB2','RB','CDM','CM1','CM2','LW','ST','RW'];
+  const SLOT_ROLES = ['GK', 'LB', 'RB', 'MF', 'ST'];
 
   // Initialize match state once — use the actual drafted players from both sides
   useEffect(() => {
@@ -101,7 +101,8 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
 
     // Preload all player photos — trigger canvas redraw on each load
     let loaded = 0;
-    const unique = [...new Set(initialState.players.map(p => p.image).filter(Boolean))] as string[];
+    const allImages = initialState.players.map(p => p.image).filter((x): x is string => !!x);
+    const unique = Array.from(new Set(allImages));
     unique.forEach(src => {
       if (imageCache.current.has(src)) { loaded++; return; }
       const img = new window.Image();

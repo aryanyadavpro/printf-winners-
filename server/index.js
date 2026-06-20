@@ -98,7 +98,7 @@ function createRoom(matchId, player1SocketId, player1Address, stake) {
     stake,
     stage: 0, // 0=lobby, 1=draft, 2=placement, 3=match, 4=result
     players: {
-      [player1SocketId]: { address: player1Address, ready: false, squad: [], formation: {}, points: 20 },
+      [player1SocketId]: { address: player1Address, ready: false, squad: [], formation: {}, points: 10 },
     },
     timers: {},
     matchResult: null,
@@ -258,7 +258,7 @@ io.on('connection', (socket) => {
       queue.splice(queue.indexOf(opponent), 1);
       const matchId = crypto.randomUUID();
       const room = createRoom(matchId, opponent.socketId, opponent.address, stake);
-      room.players[socket.id] = { address, ready: false, squad: [], formation: {}, points: 20 };
+      room.players[socket.id] = { address, ready: false, squad: [], formation: {}, points: 10 };
       rooms.set(matchId, room);
 
       io.to(opponent.socketId).emit('match_found', { matchId, opponent: address, cardPool: CARD_POOL });
@@ -320,7 +320,7 @@ io.on('connection', (socket) => {
     if (!card) return;
     if (player.squad.some(c => c.id === cardId)) { socket.emit('pick_rejected', { cardId, reason: 'already_picked' }); return; }
     if (player.points < card.cost) { socket.emit('pick_rejected', { cardId, reason: 'insufficient_points' }); return; }
-    if (player.squad.length >= 11) { socket.emit('pick_rejected', { cardId, reason: 'squad_full' }); return; }
+    if (player.squad.length >= 5) { socket.emit('pick_rejected', { cardId, reason: 'squad_full' }); return; }
 
     player.squad.push(card);
     player.points -= card.cost;
@@ -328,7 +328,7 @@ io.on('connection', (socket) => {
     socket.emit('pick_confirmed', { card, remainingPoints: player.points, squadSize: player.squad.length });
 
     // If both players have 5 cards, advance immediately
-    const allDone = Object.values(room.players).every(p => p.squad.length === 11);
+    const allDone = Object.values(room.players).every(p => p.squad.length === 5);
     if (allDone) {
       clearInterval(room.timers.draft);
       advanceToPlacement(room);

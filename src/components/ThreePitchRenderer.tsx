@@ -140,77 +140,56 @@ function addGoals(scene: THREE.Scene) {
 
 // ── Stadium ───────────────────────────────────────────────────────────────────
 function addStadium(scene: THREE.Scene) {
-  const hw = W / 2 + 5;
-  const hh = H / 2 + 5;
-  const standH = 14;
-  const standD = 12;
-  const standColor = new THREE.MeshLambertMaterial({ color: 0x1a2a5e, side: THREE.FrontSide });
-  const floorColor = new THREE.MeshLambertMaterial({ color: 0x111830 });
+  const hw = W / 2 + 7;
+  const hh = H / 2 + 7;
 
-  // 4 stands (North, South, East, West)
-  const stands = [
-    { pos: [0, standH / 2, -(hh + standD / 2)], rot: [Math.PI * 0.07, 0, 0],   size: [W + 28, standH, standD] },
-    { pos: [0, standH / 2, hh + standD / 2],     rot: [-Math.PI * 0.07, 0, 0],  size: [W + 28, standH, standD] },
-    { pos: [-(hw + standD / 2), standH / 2, 0],  rot: [0, 0, Math.PI * 0.07],   size: [standD, standH, H + 28] },
-    { pos: [hw + standD / 2, standH / 2, 0],     rot: [0, 0, -Math.PI * 0.07],  size: [standD, standH, H + 28] },
-  ];
-
-  stands.forEach(({ pos, rot, size }) => {
-    const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
-    const mesh = new THREE.Mesh(geo, standColor);
-    mesh.position.set(pos[0], pos[1], pos[2]);
-    mesh.rotation.set(rot[0], rot[1], rot[2]);
-    scene.add(mesh);
-
-    // Seat rows (lines on stand face)
-    const rowMat = new THREE.LineBasicMaterial({ color: 0x2a3d8a });
-    for (let r = 0; r < 8; r++) {
-      const y = r * 1.6 - 4;
-      const pts = [
-        new THREE.Vector3(-size[0] / 2 + 1, y, size[2] / 2 + 0.05),
-        new THREE.Vector3(size[0] / 2 - 1, y, size[2] / 2 + 0.05),
-      ];
-      const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), rowMat);
-      lineMesh.position.set(pos[0], pos[1], pos[2]);
-      lineMesh.rotation.set(rot[0], rot[1], rot[2]);
-      scene.add(lineMesh);
-    }
-  });
-
-  // Floodlights at corners
-  [[hw + 4, hh + 4], [hw + 4, -hh - 4], [-hw - 4, hh + 4], [-hw - 4, -hh - 4]].forEach(([x, z]) => {
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.3, 18, 6),
-      new THREE.MeshLambertMaterial({ color: 0x888888 })
-    );
-    pole.position.set(x, 9, z);
-    scene.add(pole);
-
-    // Light head
-    const head = new THREE.Mesh(
-      new THREE.BoxGeometry(3, 0.5, 2),
-      new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffee, emissiveIntensity: 1 })
-    );
-    head.position.set(x, 18.5, z);
-    scene.add(head);
-
-    // Point light from each floodlight
-    const fl = new THREE.PointLight(0xffffff, 0.3, 80);
-    fl.position.set(x, 18, z);
-    scene.add(fl);
-  });
-
-  // Running track around pitch (dark orange)
-  const trackMat = new THREE.MeshLambertMaterial({ color: 0x8b3a3a });
-  const trackGeo = new THREE.RingGeometry(
-    Math.max(hw, hh) + 0.5,
-    Math.max(hw, hh) + 4.5,
-    64
-  );
+  // Running track
+  const trackMat = new THREE.MeshLambertMaterial({ color: 0x7a3030 });
+  const trackGeo = new THREE.RingGeometry(Math.max(hw, hh) - 2, Math.max(hw, hh) + 3, 64);
   const track = new THREE.Mesh(trackGeo, trackMat);
   track.rotation.x = -Math.PI / 2;
   track.position.y = 0.01;
   scene.add(track);
+
+  // Low stands — far back, not blocking view
+  const standMat = new THREE.MeshLambertMaterial({ color: 0x1a2550 });
+  const standConfigs = [
+    { pos: [0, 5, -(hh + 10)] as [number,number,number], size: [W + 30, 10, 8] as [number,number,number] },
+    { pos: [0, 5,  (hh + 10)] as [number,number,number], size: [W + 30, 10, 8] as [number,number,number] },
+    { pos: [-(hw + 10), 5, 0] as [number,number,number], size: [8, 10, H + 30] as [number,number,number] },
+    { pos: [ (hw + 10), 5, 0] as [number,number,number], size: [8, 10, H + 30] as [number,number,number] },
+  ];
+  standConfigs.forEach(({ pos, size }) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...size), standMat);
+    m.position.set(...pos);
+    scene.add(m);
+    // Horizontal seat lines
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x2a3d8a });
+    for (let r = 0; r < 5; r++) {
+      const pts = [
+        new THREE.Vector3(-size[0] / 2 + 0.5, r * 1.8 - 4, 0),
+        new THREE.Vector3(size[0] / 2 - 0.5,  r * 1.8 - 4, 0),
+      ];
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
+      l.position.set(...pos);
+      scene.add(l);
+    }
+  });
+
+  // Slim floodlight poles at 4 corners
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0x999999 });
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xffffdd, emissive: 0xffffaa, emissiveIntensity: 0.8 });
+  [[hw + 8, hh + 8], [hw + 8, -hh - 8], [-hw - 8, hh + 8], [-hw - 8, -hh - 8]].forEach(([x, z]) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 16, 6), poleMat);
+    pole.position.set(x, 8, z);
+    scene.add(pole);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 1.5), headMat);
+    head.position.set(x, 16.5, z);
+    scene.add(head);
+    const pl = new THREE.PointLight(0xfff8e8, 0.25, 100);
+    pl.position.set(x, 16, z);
+    scene.add(pl);
+  });
 }
 
 // ── Player canvas texture ─────────────────────────────────────────────────────
@@ -384,9 +363,9 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
     scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
 
     // Camera — FIFA broadcast angle
-    const camera = new THREE.PerspectiveCamera(55, elW / elH, 0.1, 250);
-    camera.position.set(0, 32, 42);
-    camera.lookAt(0, 0, -4);
+    const camera = new THREE.PerspectiveCamera(48, elW / elH, 0.1, 300);
+    camera.position.set(0, 46, 54);
+    camera.lookAt(0, 0, 0);
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -413,22 +392,25 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
     addStadium(scene);
 
     // ── Lighting ──────────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 
-    const sun = new THREE.DirectionalLight(0xfff8e8, 1.4);
+    const sun = new THREE.DirectionalLight(0xfff8e8, 1.3);
     sun.position.set(25, 50, 30);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 180;
-    sun.shadow.camera.left = -65;
-    sun.shadow.camera.right = 65;
-    sun.shadow.camera.top = 55;
-    sun.shadow.camera.bottom = -55;
+    sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = -70;
+    sun.shadow.camera.right = 70;
+    sun.shadow.camera.top = 60;
+    sun.shadow.camera.bottom = -60;
     sun.shadow.bias = -0.001;
     scene.add(sun);
-    scene.add(new THREE.DirectionalLight(0x8899ff, 0.25).position.set(-20, 15, -30) && new THREE.DirectionalLight(0x8899ff, 0.25));
+
+    const fill = new THREE.DirectionalLight(0x8899ff, 0.2);
+    fill.position.set(-20, 15, -30);
+    scene.add(fill);
 
     // ── Ball ──────────────────────────────────────────────────────────────
     const ballMesh = new THREE.Mesh(
@@ -455,7 +437,7 @@ export default function ThreePitchRenderer({ players, ball, imageCache }: Props)
       // Smooth camera pan following ball X
       cameraTargetX += (stateRef.current!.cameraTargetX - cameraTargetX) * 0.04;
       camera.position.x = cameraTargetX * 0.35;
-      camera.lookAt(cameraTargetX * 0.35, 0, -4);
+      camera.lookAt(cameraTargetX * 0.25, 0, 0);
       renderer.render(scene, camera);
     };
     const firstId = requestAnimationFrame(animate);

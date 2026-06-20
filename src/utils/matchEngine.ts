@@ -19,39 +19,26 @@ export type PlayerRole = 'GK' | 'LB' | 'CB1' | 'CB2' | 'RB' | 'CDM' | 'CM1' | 'C
 
 interface RolePosition { x: number; y: number; }
 
-// 4-3-3 kickoff positions — Red attacks left→right, Blue attacks right→left
+// 5-player kickoff positions
 const RED_HOME_POSITIONS: Record<string, RolePosition> = {
-  GK:  { x: 55,  y: 225 },
-  LB:  { x: 175, y: 360 },
-  CB1: { x: 190, y: 270 },
-  CB2: { x: 190, y: 180 },
-  RB:  { x: 175, y: 90  },
-  CDM: { x: 310, y: 225 },
-  CM1: { x: 390, y: 320 },
-  CM2: { x: 390, y: 130 },
-  LW:  { x: 530, y: 370 },
-  ST:  { x: 570, y: 225 },
-  RW:  { x: 530, y: 80  },
+  GK: { x: 60,  y: 225 },
+  LB: { x: 190, y: 130 },
+  RB: { x: 190, y: 320 },
+  MF: { x: 360, y: 225 },
+  ST: { x: 500, y: 225 },
 };
 
 const BLUE_HOME_POSITIONS: Record<string, RolePosition> = {
-  GK:  { x: 745, y: 225 },
-  RB:  { x: 625, y: 360 },
-  CB1: { x: 610, y: 270 },
-  CB2: { x: 610, y: 180 },
-  LB:  { x: 625, y: 90  },
-  CDM: { x: 490, y: 225 },
-  CM1: { x: 410, y: 320 },
-  CM2: { x: 410, y: 130 },
-  RW:  { x: 270, y: 370 },
-  ST:  { x: 230, y: 225 },
-  LW:  { x: 270, y: 80  },
+  GK: { x: 740, y: 225 },
+  LB: { x: 610, y: 130 },
+  RB: { x: 610, y: 320 },
+  MF: { x: 440, y: 225 },
+  ST: { x: 300, y: 225 },
 };
 
-const ROLE_ORDER = ['GK','LB','CB1','CB2','RB','CDM','CM1','CM2','LW','ST','RW'];
-
 export function getRoleFromIndex(index: number): string {
-  return ROLE_ORDER[index % ROLE_ORDER.length] ?? 'MF';
+  const roles = ['GK','LB','RB','MF','ST'];
+  return roles[index % 5] ?? 'MF';
 }
 
 // Generate a random ID
@@ -169,7 +156,7 @@ export function resetToKickoff(players: Player[], ball: Ball): void {
   ball.controlledById = null;
 
   players.forEach((p, index) => {
-    const teamIndex = index % 11;
+    const teamIndex = index % 5;
     const role = getRoleFromIndex(teamIndex);
     const home = p.side === 'red' ? RED_HOME_POSITIONS[role] : BLUE_HOME_POSITIONS[role];
     p.x = home.x;
@@ -231,7 +218,7 @@ export function runMatchTick(
 
   // 2. Outfield Stamina Degradation — faster for low-stamina players
   players.forEach(p => {
-    const role = getRoleFromIndex(players.indexOf(p) % 11);
+    const role = getRoleFromIndex(players.indexOf(p) % 5);
     if (role !== 'GK') {
       // Higher stamina stat = slower drain; wingers/strikers burn more energy
       const positionBurn = ['ST','LW','RW'].includes(p.position ?? '') ? 1.4 : 1.0;
@@ -368,7 +355,7 @@ export function runMatchTick(
           requestAgentDecision(player.id, {
             playerName: player.name, trait: player.trait, position: player.position ?? role,
             speed: player.speed, shooting: player.shooting, passing: player.passing, stamina: player.stamina,
-            distToGoal: goalDist, nearestOppDist,
+            distToGoal: goalDist, nearestOppDist: nearestOpponentDist,
             score: `${state.scoreRed}-${state.scoreBlue}`,
             timeLeft: Math.round(state.timeRemaining),
             currentStamina: player.currentStamina,
@@ -470,7 +457,7 @@ export function runMatchTick(
           shootBall(ball, player, opponentGoalX, FIELD_HEIGHT / 2 + (Math.random() * 60 - 30), 12 + (player.shooting / 25));
         } else if (roll < shootWeight + passWeight) {
           // PASS ACTION
-          const teammates = players.filter(t => t.side === player.side && t.id !== player.id && getRoleFromIndex(players.indexOf(t) % 11) !== 'GK');
+          const teammates = players.filter(t => t.side === player.side && t.id !== player.id && getRoleFromIndex(players.indexOf(t) % 5) !== 'GK');
           
           if (teammates.length > 0) {
             // Rank teammates based on proximity to opponent goal

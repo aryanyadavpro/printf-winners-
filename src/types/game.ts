@@ -14,8 +14,8 @@ export interface Player {
   currentStamina: number; // Current Stamina during game
   
   trait: PersonaTrait;
-  position: string;
-  image?: string; // path to player photo e.g. '/images/ronaldo.jpg'
+  position?: string;
+  image?: string;
 
   // Position & Physics Vectors
   x: number;

@@ -170,7 +170,7 @@ export default function DraftStage({
   timer, opponentAddress, onPickCard, onUnpickCard,
 }: DraftStageProps) {
   const mySquadIds = new Set(mySquad.map(c => c.id));
-  const squadFull  = mySquad.length >= 11;
+  const squadFull  = mySquad.length >= 5;
 
   const timerColor = timer <= 10 ? 'var(--fifa-red)' : timer <= 20 ? '#C89520' : '#00A651';
   const timerBg    = timer <= 10 ? '#FFE5E8' : timer <= 20 ? '#FFF8E0' : '#E5F7ED';
@@ -211,7 +211,7 @@ export default function DraftStage({
             {myPoints}<span style={{ fontSize: '14px', color: '#999' }}>PT</span>
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '10px', color: '#999', letterSpacing: '1px' }}>
-            {mySquad.length}/11 PICKED
+            {mySquad.length}/5 PICKED
           </div>
         </div>
       </div>
@@ -283,7 +283,7 @@ export default function DraftStage({
 
           {/* Slots */}
           <div style={{ background: '#fff' }}>
-            {[0,1,2,3,4,5,6,7,8,9,10].map(i => {
+            {[0,1,2,3,4].map(i => {
               const card = mySquad[i];
               const tier = card ? (TIER_META[card.tier] ?? TIER_META.Common) : null;
               const trait = card ? (TRAIT_META[card.trait] ?? { color: '#000', bg: '#f5f5f5' }) : null;
@@ -359,7 +359,7 @@ export default function DraftStage({
               </div>
             ) : (
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', letterSpacing: '1.5px', color: '#555' }}>
-                PICK {11 - mySquad.length} MORE PLAYER{11 - mySquad.length !== 1 ? 'S' : ''}
+                PICK {5 - mySquad.length} MORE PLAYER{5 - mySquad.length !== 1 ? 'S' : ''}
               </div>
             )}
           </div>
