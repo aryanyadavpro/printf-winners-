@@ -17,9 +17,10 @@ import { BrowserProvider } from 'ethers';
 interface DashboardProps {
   onStartMatch: (squad: Player[]) => void;
   onGoToShop?: () => void;
+  onWalletConnect?: (address: string, provider: BrowserProvider) => void;
 }
 
-export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) {
+export default function Dashboard({ onStartMatch, onGoToShop, onWalletConnect }: DashboardProps) {
   // Wallet state
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [contractAddress, setContractAddress] = useState<string>('0xed41C47315306e8fE56A330D1e938b257FAC7aE5');
@@ -47,6 +48,7 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
       setWalletAddress(address);
       setProvider(p);
       setWeb3Connected(true);
+      onWalletConnect?.(address, p);
     } catch (e: any) {
       alert(e.message || "Failed to connect wallet.");
     }
