@@ -346,94 +346,104 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
     // 2. Draw Players — identical structure for both teams, colour is the only difference
     const redPlayers  = matchState.players.filter(p => p.side === 'red');
     const bluePlayers = matchState.players.filter(p => p.side === 'blue');
-    const R = 22; // avatar radius (same for everyone)
+    const R = 17; // avatar radius — compact so players don't visually overlap
 
     const drawPlayer = (player: typeof matchState.players[0]) => {
       const isRed     = player.side === 'red';
       const teamList  = isRed ? redPlayers : bluePlayers;
       const teamIdx   = teamList.indexOf(player);
       const role      = SLOT_ROLES[teamIdx] ?? '?';
-      const teamColor = isRed ? '#E8001D' : '#0033A0';
+      const teamColor = isRed ? '#CC0000' : '#0044BB';
       const img       = player.image ? imageCache.current.get(player.image) : null;
       const imgReady  = !!(img && img.complete && img.naturalWidth > 0);
       const { x, y }  = player;
 
-      // ── 1. Gold possession halo ───────────────────────────────────────────
+      // ── 1. Subtle shadow ──────────────────────────────────────────────────
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(x + 2, y + R + 2, R * 0.8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // ── 2. Gold glow on ball carrier ──────────────────────────────────────
       if (player.hasBall) {
         ctx.save();
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 4;
         ctx.shadowColor = '#FFD700';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(x, y, R + 6, 0, Math.PI * 2);
+        ctx.arc(x, y, R + 4, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
 
-      // ── 2. White outer ring then team-colour inner ring ───────────────────
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
+      // ── 3. White border ring ──────────────────────────────────────────────
+      ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(x, y, R + 3, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.arc(x, y, R + 2.5, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.strokeStyle = teamColor;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, R + 1, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // ── 3. Circular photo clip ────────────────────────────────────────────
+      // ── 4. Photo or solid fill inside circle ─────────────────────────────
       ctx.save();
       ctx.beginPath();
       ctx.arc(x, y, R, 0, Math.PI * 2);
       ctx.clip();
-
       if (imgReady) {
         ctx.drawImage(img!, x - R, y - R, R * 2, R * 2);
+        // Team colour tint overlay (subtle)
+        ctx.fillStyle = isRed ? 'rgba(180,0,0,0.18)' : 'rgba(0,40,160,0.18)';
+        ctx.fillRect(x - R, y - R, R * 2, R * 2);
       } else {
         ctx.fillStyle = teamColor;
         ctx.fillRect(x - R, y - R, R * 2, R * 2);
         ctx.fillStyle = '#fff';
-        ctx.font = `bold ${R * 0.6}px Arial`;
+        ctx.font = `bold ${Math.round(R * 0.65)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const initials = player.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2);
-        ctx.fillText(initials, x, y);
+        ctx.fillText(player.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2), x, y);
       }
       ctx.restore();
 
-      // ── 4. Role badge (identical for both teams) ──────────────────────────
-      const badgeW = 34;
-      const badgeH = 14;
-      const bx = x - badgeW / 2;
-      const by = y + R + 4;
-
-      ctx.fillStyle = teamColor;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(bx, by, badgeW, badgeH, 3);
-      else ctx.rect(bx, by, badgeW, badgeH);
-      ctx.fill();
-
+      // ── 5. Role text over photo (top of circle) ───────────────────────────
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x - R, y - R, R * 2, 13);
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 8px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(role, x, by + badgeH / 2);
+      ctx.fillText(role, x, y - R + 6.5);
 
-      // ── 5. Stamina bar (same width/position for both) ─────────────────────
-      const barW = 44;
-      const barY  = by + badgeH + 3;
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(x - barW / 2, barY, barW, 4);
-      const staminaColor = player.currentStamina < 25 ? '#ff3b30'
-        : player.currentStamina < 60 ? '#ffaa00' : '#34c759';
-      ctx.fillStyle = staminaColor;
-      ctx.fillRect(x - barW / 2, barY, (player.currentStamina / 100) * barW, 4);
+      // ── 6. Name strip below circle ────────────────────────────────────────
+      const surname = player.name.split(' ').slice(-1)[0].toUpperCase().slice(0, 7);
+      const nameW = Math.max(surname.length * 5.5 + 8, 36);
+      const nameH = 13;
+      const nx = x - nameW / 2;
+      const ny = y + R + 3;
+
+      ctx.fillStyle = teamColor;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(nx, ny, nameW, nameH, 2);
+      else ctx.rect(nx, ny, nameW, nameH);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 7.5px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(surname, x, ny + nameH / 2);
+
+      // ── 7. Stamina bar ────────────────────────────────────────────────────
+      const barW = nameW;
+      const barY = ny + nameH + 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(x - barW / 2, barY, barW, 3);
+      const sc = player.currentStamina < 30 ? '#ff3b30' : player.currentStamina < 60 ? '#ffaa00' : '#30d158';
+      ctx.fillStyle = sc;
+      ctx.fillRect(x - barW / 2, barY, (player.currentStamina / 100) * barW, 3);
     };
 
-    // Draw blue team first (behind), then red team on top
+    // Blue first (behind), red on top
     bluePlayers.forEach(drawPlayer);
     redPlayers.forEach(drawPlayer);
 

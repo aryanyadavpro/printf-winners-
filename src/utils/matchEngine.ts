@@ -508,121 +508,116 @@ export function runMatchTick(
         }
       }
     } else {
-      // 4B. PLAYER DOES NOT HAVE THE BALL
-      
-      // If team has ball, advance forward to support
+      // 4B. PLAYER DOES NOT HAVE THE BALL — zone-based formation discipline
+      const distToBall = getDistance(player.x, player.y, ball.x, ball.y);
+
+      // Each role has an "engagement radius" — only engage if ball is within it
+      const ENGAGE_RADIUS: Record<string, number> = {
+        GK: 90, LB: 220, CB1: 200, CB2: 200, RB: 220,
+        CDM: 260, CM1: 300, CM2: 300,
+        LW: 320, RW: 320, ST: 400,
+      };
+      const engageRadius = ENGAGE_RADIUS[role] ?? 250;
+      const ballInZone = distToBall < engageRadius;
+
+      // Among players in zone, only allow max 4 to actively press at once
+      const sidemates = players.filter(p => p.side === player.side && p.id !== player.id && !p.hasBall);
+      const closerCount = sidemates.filter(p =>
+        getDistance(p.x, p.y, ball.x, ball.y) < distToBall
+      ).length;
+      const isActivePresser = ballInZone && closerCount < 4;
+
       const teamHasBall = players.some(p => p.side === player.side && p.hasBall);
-      
-      if (teamHasBall) {
-        // Attack support positioning
-        player.state = 'chase_ball'; // heading to support position
+      const opponentHasBall = players.some(p => p.side !== player.side && p.hasBall);
+
+      if (opponentHasBall) {
+        const carrier = players.find(p => p.side !== player.side && p.hasBall)!;
+        const distToCarrier = getDistance(player.x, player.y, carrier.x, carrier.y);
+
+        // Tackle if touching distance
+        if (distToCarrier < 22 && player.timeSinceLastAction > 20) {
+          player.timeSinceLastAction = 0;
+          const defensePower = player.defense + player.currentStamina * 0.1;
+          const carrierEvade  = carrier.speed   + carrier.currentStamina * 0.1;
+          const tackleProb = clamp((defensePower / (defensePower + carrierEvade)) * 0.75, 0.1, 0.9);
+
+          if (Math.random() < tackleProb) {
+            ball.controlledById = player.id;
+            ball.lastPossessedById = player.id;
+            player.hasBall = true; carrier.hasBall = false;
+            player.state = 'dribble'; carrier.state = 'idle';
+            carrier.x += carrier.side === 'red' ? -15 : 15;
+          } else {
+            if (player.currentStamina < 20 && ['CB1','CB2','LB','RB'].includes(role)) {
+              mangaTriggerCallback({ id: generateId(), type: 'breakdown', player: { ...player }, secondaryPlayer: { ...carrier }, timestamp: new Date().toLocaleTimeString() });
+            }
+            player.vx *= -0.2; player.vy *= -0.2;
+          }
+        }
+
+        if (isActivePresser) {
+          // Press the carrier, but GK stays in box
+          if (role === 'GK') {
+            player.targetX = clamp(carrier.x, home.x - 40, home.x + 40);
+            player.targetY = clamp(carrier.y, GOAL_Y_TOP - 10, GOAL_Y_BOTTOM + 10);
+          } else {
+            player.state = 'defend';
+            player.targetX = carrier.x;
+            player.targetY = carrier.y;
+          }
+        } else {
+          // Out of zone or too many pressers — hold position / block passing lanes
+          player.state = 'return_to_position';
+          player.targetX = home.x;
+          player.targetY = clamp(carrier.y * 0.3 + home.y * 0.7, PITCH_MARGIN + 10, FIELD_HEIGHT - PITCH_MARGIN - 10);
+        }
+
+      } else if (teamHasBall) {
         const carrier = players.find(p => p.side === player.side && p.hasBall)!;
-        
-        // Position relative to home/carrier
-        player.targetX = home.x + (carrier.x - home.x) * 0.65;
-        // Midfield/Striker targets run forward
-        if (role === 'FW') {
-          player.targetX = clamp(carrier.x + (player.side === 'red' ? 90 : -90), PITCH_MARGIN + 50, FIELD_WIDTH - PITCH_MARGIN - 50);
-          player.targetY = carrier.y + (player.y > carrier.y ? 60 : -60);
+
+        if (isActivePresser) {
+          player.state = 'chase_ball';
+          // Role-specific support runs
+          if (['ST','LW','RW'].includes(role)) {
+            // Attackers make forward runs into space
+            const runDir = player.side === 'red' ? 1 : -1;
+            player.targetX = clamp(carrier.x + runDir * 80, PITCH_MARGIN + 30, FIELD_WIDTH - PITCH_MARGIN - 30);
+            player.targetY = home.y + (Math.random() - 0.5) * 60;
+          } else if (['CM1','CM2','CDM'].includes(role)) {
+            // Midfielders support carrier at mid-distance
+            player.targetX = home.x + (carrier.x - home.x) * 0.5;
+            player.targetY = home.y + (carrier.y - home.y) * 0.4;
+          } else {
+            // Defenders hold shape, slight advance only
+            player.targetX = home.x + (carrier.x - home.x) * 0.2;
+            player.targetY = home.y + (carrier.y - home.y) * 0.15;
+          }
         } else {
-          player.targetY = home.y + (carrier.y - home.y) * 0.3;
+          // Hold position
+          player.state = 'return_to_position';
+          player.targetX = home.x;
+          player.targetY = home.y;
         }
+
       } else {
-        // Opponent has ball / Ball is free: Defense mode
-        const opponentHasBall = players.some(p => p.side !== player.side && p.hasBall);
-        
-        if (opponentHasBall) {
-          const carrier = players.find(p => p.side !== player.side && p.hasBall)!;
-          const distToCarrier = getDistance(player.x, player.y, carrier.x, carrier.y);
+        // Ball is free — only closest player on team races for it
+        const sidemates2 = players.filter(p => p.side === player.side && !p.hasBall);
+        const closerToFree = sidemates2.filter(p =>
+          getDistance(p.x, p.y, ball.x, ball.y) < distToBall
+        ).length;
 
-          // Tackle Mechanic: if close enough, attempt defensive tackle
-          if (distToCarrier < 20 && player.timeSinceLastAction > 20) {
-            player.timeSinceLastAction = 0;
-            
-            // Calculate tackle success based on stats
-            const defensePower = player.defense + (player.currentStamina * 0.1);
-            const carrierEvade = carrier.speed + (carrier.currentStamina * 0.1);
-            
-            const tackleProb = clamp((defensePower / (defensePower + carrierEvade)) * 0.75, 0.1, 0.9);
-            const roll = Math.random();
-
-            if (roll < tackleProb) {
-              // SUCCESSFUL TACKLE
-              ball.controlledById = player.id;
-              ball.lastPossessedById = player.id;
-              player.hasBall = true;
-              carrier.hasBall = false;
-              player.state = 'dribble';
-              carrier.state = 'idle';
-              // Push carrier back slightly
-              carrier.x += (carrier.side === 'red' ? -15 : 15);
-            } else {
-              // TACKLE FAILED: BREAKDOWN TRIGGER
-              // Trigger "Breakdown" if defender fails tackle at low stamina (< 20%)
-              if (player.currentStamina < 20 && (role === 'CB1' || role === 'CB2' || role === 'LB' || role === 'RB')) {
-                const event: MangaEvent = {
-                  id: generateId(),
-                  type: 'breakdown',
-                  player: { ...player },
-                  secondaryPlayer: { ...carrier }, // the carrier who broke through
-                  timestamp: new Date().toLocaleTimeString()
-                };
-                mangaTriggerCallback(event);
-                state.currentMangaEvent = event;
-              }
-              
-              // Apply stumble penalty to defender
-              player.vx *= -0.2;
-              player.vy *= -0.2;
-            }
-          }
-
-          // Defensive tracking target
-          const isDefender = ['LB','CB1','CB2','RB','CDM'].includes(role);
-          const isMid = ['CM1','CM2'].includes(role);
-          if (isDefender || (isMid && Math.random() < 0.7)) {
-            // Chase ball carrier if in own half, else block pathways
-            const isCarrierInOwnHalf = player.side === 'red' ? carrier.x < FIELD_WIDTH / 2 + 50 : carrier.x > FIELD_WIDTH / 2 - 50;
-            
-            if (isCarrierInOwnHalf || distToCarrier < 150) {
-              player.state = 'defend';
-              player.targetX = carrier.x;
-              player.targetY = carrier.y;
-            } else {
-              player.state = 'return_to_position';
-              player.targetX = home.x;
-              player.targetY = home.y;
-            }
-          } else {
-            // Midfielder/Forwards stay balanced or return to support positions
-            player.state = 'return_to_position';
-            player.targetX = home.x;
-            player.targetY = home.y;
-          }
+        if (closerToFree === 0) {
+          // This player is closest on team — chase ball
+          player.state = 'chase_ball';
+          player.targetX = ball.x;
+          player.targetY = ball.y;
         } else {
-          // Ball is free: rush to ball if closest, else maintain formation
-          let closestToBall = true;
-          const myDistToBall = getDistance(player.x, player.y, ball.x, ball.y);
-
-          players.forEach(other => {
-            if (other.side === player.side && other.id !== player.id) {
-              if (getDistance(other.x, other.y, ball.x, ball.y) < myDistToBall) {
-                closestToBall = false;
-              }
-            }
-          });
-
-          // Only GK is exempt from this out of box chase
-          if (closestToBall && myDistToBall < 300) {
-            player.state = 'chase_ball';
-            player.targetX = ball.x;
-            player.targetY = ball.y;
-          } else {
-            player.state = 'return_to_position';
-            player.targetX = home.x;
-            player.targetY = home.y;
-          }
+          // Hold position
+          player.state = 'return_to_position';
+          player.targetX = home.x;
+          player.targetY = home.y;
         }
+
       }
     }
 
