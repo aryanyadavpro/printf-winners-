@@ -94,6 +94,36 @@ const REAL_PLAYERS_MAPPING: Record<string, {
     defense: 65,
     stamina: 90,
     reasoning: "Extremely skilled but under high pressure or fatigue, tends to overthink options or clear ball hastily."
+  },
+  'neymar': {
+    name: "Neymar Jr.",
+    trait: "Maverick",
+    speed: 91,
+    passing: 86,
+    shooting: 87,
+    defense: 30,
+    stamina: 78,
+    reasoning: "A chaos agent who thrives on unpredictable dribbles, rainbow flicks, and spectacular solo plays."
+  },
+  'modric': {
+    name: "Luka Modrić",
+    trait: "Calculative",
+    speed: 74,
+    passing: 96,
+    shooting: 76,
+    defense: 72,
+    stamina: 88,
+    reasoning: "Orchestrates tempo with metronomic precision, always selecting the highest-value pass or movement."
+  },
+  'sergio': {
+    name: "Sergio Ramos",
+    trait: "Arrogant",
+    speed: 72,
+    passing: 74,
+    shooting: 68,
+    defense: 93,
+    stamina: 84,
+    reasoning: "Commands the backline with aggression and dominance, believing no attacker can beat him one-on-one."
   }
 };
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Dashboard from '../components/Dashboard';
+import FormationPicker from '../components/FormationPicker';
 import PitchView from '../components/PitchView';
 import Shop from '../components/Shop';
 import { Player } from '../types/game';
@@ -10,14 +11,22 @@ import { Player } from '../types/game';
 const NFT_CONTRACT_ADDRESS = '0xed41C47315306e8fE56A330D1e938b257FAC7aE5';
 const MARKETPLACE_CONTRACT_ADDRESS = '0x414D4901abaF7d100a79D5ee10316BCe3037d9C3';
 
-type View = 'dashboard' | 'pitch' | 'shop';
+type View = 'dashboard' | 'formation' | 'pitch' | 'shop';
 
 export default function Home() {
   const [activeView, setActiveView] = useState<View>('dashboard');
+  const [pendingSquad, setPendingSquad] = useState<Player[]>([]);
   const [activeSquad, setActiveSquad] = useState<Player[]>([]);
 
+  // Dashboard → Formation picker
   const handleStartMatch = (squad: Player[]) => {
-    setActiveSquad(squad);
+    setPendingSquad(squad);
+    setActiveView('formation');
+  };
+
+  // Formation picker → Pitch (players already have position bonuses applied)
+  const handleFormationConfirm = (players: Player[]) => {
+    setActiveSquad(players);
     setActiveView('pitch');
   };
 
@@ -27,8 +36,8 @@ export default function Home() {
 
   return (
     <main>
-      {/* Global nav — hidden during active match */}
-      {activeView !== 'pitch' && (
+      {/* Global nav — hidden during active match and formation */}
+      {activeView !== 'pitch' && activeView !== 'formation' && (
         <nav style={{
           display: 'flex',
           justifyContent: 'center',
@@ -65,6 +74,13 @@ export default function Home() {
 
       {activeView === 'dashboard' && (
         <Dashboard onStartMatch={handleStartMatch} onGoToShop={() => setActiveView('shop')} />
+      )}
+      {activeView === 'formation' && (
+        <FormationPicker
+          squad={pendingSquad}
+          onConfirm={handleFormationConfirm}
+          onBack={() => setActiveView('dashboard')}
+        />
       )}
       {activeView === 'pitch' && (
         <PitchView squad={activeSquad} onBackToDashboard={handleBackToDashboard} />

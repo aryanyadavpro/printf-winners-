@@ -1,4 +1,4 @@
-import { Player, Ball, MatchState, MangaEvent, PersonaTrait } from '../types/game';
+import { Player, Ball, MatchState, MangaEvent, PersonaTrait, PositionSlot } from '../types/game';
 import {
   FIELD_WIDTH,
   FIELD_HEIGHT,
@@ -17,26 +17,49 @@ import {
 // Role type mapping for 5v5 setup
 export type PlayerRole = 'GK' | 'DF' | 'MF' | 'FW';
 
+// Stat multipliers applied when a player is placed in a specific position
+export const POSITION_MULTIPLIERS: Record<PositionSlot, Record<string, number>> = {
+  GK: { speed: 0.85, passing: 1.00, shooting: 0.65, defense: 1.28, stamina: 1.00 },
+  DL: { speed: 1.05, passing: 1.00, shooting: 0.80, defense: 1.18, stamina: 1.00 },
+  DR: { speed: 1.05, passing: 1.00, shooting: 0.80, defense: 1.18, stamina: 1.00 },
+  MF: { speed: 1.00, passing: 1.22, shooting: 0.88, defense: 1.00, stamina: 1.12 },
+  FW: { speed: 1.10, passing: 0.88, shooting: 1.25, defense: 0.75, stamina: 1.00 },
+};
+
+// Apply position multipliers to a player's base stats (returns new player, does not mutate)
+export function applyPositionBonuses(player: Player, slot: PositionSlot): Player {
+  const m = POSITION_MULTIPLIERS[slot];
+  return {
+    ...player,
+    speed:    Math.max(1, Math.min(99, Math.round(player.speed    * m.speed))),
+    passing:  Math.max(1, Math.min(99, Math.round(player.passing  * m.passing))),
+    shooting: Math.max(1, Math.min(99, Math.round(player.shooting * m.shooting))),
+    defense:  Math.max(1, Math.min(99, Math.round(player.defense  * m.defense))),
+    stamina:  Math.max(1, Math.min(99, Math.round(player.stamina  * m.stamina))),
+  };
+}
+
 interface RolePosition {
   x: number;
   y: number;
 }
 
-// Kickoff positions (Red attacks Left->Right, Blue attacks Right->Left)
+// Kickoff positions — Red (left half) attacks →, Blue (right half) attacks ←.
+// All players must start strictly inside their own half (centre line = x 400).
 const RED_HOME_POSITIONS: Record<PlayerRole | string, RolePosition> = {
-  GK: { x: 60, y: 225 },
-  DF1: { x: 190, y: 130 },
-  DF2: { x: 190, y: 320 },
-  MF: { x: 360, y: 225 },
-  FW: { x: 500, y: 225 }
+  GK:  { x: 52,  y: 225 },   // left goal line
+  DF1: { x: 165, y: 130 },   // left-back (upper)
+  DF2: { x: 165, y: 320 },   // left-back (lower)
+  MF:  { x: 285, y: 225 },   // left-centre midfield
+  FW:  { x: 370, y: 225 },   // striker waiting just left of centre
 };
 
 const BLUE_HOME_POSITIONS: Record<PlayerRole | string, RolePosition> = {
-  GK: { x: 740, y: 225 },
-  DF1: { x: 610, y: 130 },
-  DF2: { x: 610, y: 320 },
-  MF: { x: 440, y: 225 },
-  FW: { x: 300, y: 225 }
+  GK:  { x: 748, y: 225 },   // right goal line
+  DF1: { x: 635, y: 130 },   // right-back (upper)
+  DF2: { x: 635, y: 320 },   // right-back (lower)
+  MF:  { x: 515, y: 225 },   // right-centre midfield
+  FW:  { x: 430, y: 225 },   // striker waiting just right of centre
 };
 
 // Map indices to roles

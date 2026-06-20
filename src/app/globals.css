@@ -22,6 +22,10 @@
   --color-maverick: #D500FF;
   --color-team: #0066FF;
 
+  /* Legacy aliases used in existing components */
+  --neon-cyan: #00E1D9;
+  --monad-purple: #8A2BE2;
+
   --font-primary: 'Outfit', sans-serif;
   --font-manga: 'Bebas Neue', sans-serif;
   --font-bubble: 'Permanent Marker', cursive;

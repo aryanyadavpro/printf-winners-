@@ -1,5 +1,7 @@
 export type PersonaTrait = 'Arrogant' | 'Calculative' | 'Panic-Prone' | 'Maverick' | 'Team-First';
 
+export type PositionSlot = 'GK' | 'DL' | 'DR' | 'MF' | 'FW';
+
 export interface Player {
   id: string;
   tokenId?: number; // Dynamic NFT Token ID if connected

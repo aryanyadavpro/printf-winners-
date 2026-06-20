@@ -7,6 +7,7 @@ import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } fr
 import { updatePlayerStatsOnChain } from '../utils/web3';
 import { Play, Pause, RotateCcw, FastForward, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 import MangaOverlay from './MangaOverlay';
+import { getPlayerImage } from '../utils/playerImages';
 
 interface PitchViewProps {
   squad: Player[];
@@ -17,6 +18,8 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mangaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMangaEventTimeRef = useRef<number>(0);
+  // Cached HTMLImageElements keyed by player id
+  const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
 
   // Simulation State
   const [matchState, setMatchState] = useState<MatchState | null>(null);
@@ -91,6 +94,16 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     resetToKickoff(initialState.players, initialState.ball);
     setMatchState(initialState);
     setMatchLog(["Match ready. Tactical kickoff scheduled."]);
+
+    // Preload player images into the cache so canvas drawImage works
+    initialPlayersList.forEach(player => {
+      if (imageCache.current.has(player.id)) return;
+      const src = getPlayerImage(player.name);
+      if (!src) return;
+      const img = new Image();
+      img.src = src;
+      imageCache.current.set(player.id, img);
+    });
   }, [squad]);
 
   // Main Simulation Loop
@@ -279,45 +292,87 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
     // 2. Draw Players
     matchState.players.forEach(player => {
       const isRed = player.side === 'red';
-      const traitGlow = getTraitColor(player.trait);
+      const teamColor  = isRed ? '#FF0055' : '#0066FF';  // hard hex — CSS vars fail on canvas
+      const traitColor = getTraitColor(player.trait);
+      const cachedImg  = imageCache.current.get(player.id);
+      const hasPhoto   = cachedImg && cachedImg.complete && cachedImg.naturalHeight > 0;
+      const role       = getRoleFromIndex(matchState.players.indexOf(player) % 5);
 
-      // Draw outer brutalist aura circle (offset flat representation)
-      ctx.fillStyle = traitGlow;
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3.5;
+      // ── Trait aura glow (offset shadow) ──────────────────────────────────
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = traitColor;
       ctx.beginPath();
-      ctx.arc(player.x + 3, player.y + 3, 17, 0, Math.PI * 2);
+      ctx.arc(player.x + 2, player.y + 2, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // ── Team-coloured outer ring ──────────────────────────────────────────
+      ctx.fillStyle = teamColor;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 17, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Main Player Circle
-      ctx.fillStyle = isRed ? 'var(--fifa-red)' : 'var(--fifa-blue)';
+      // ── Player photo (clipped circle) or initial fallback ─────────────────
+      if (hasPhoto) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 13, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(cachedImg!, player.x - 13, player.y - 13, 26, 26);
+        ctx.restore();
+        // Thin white ring over photo
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 13, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // Fallback dark circle + 2-letter initials
+        ctx.fillStyle = '#0f111a';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 9px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(player.name.substring(0, 2).toUpperCase(), player.x, player.y);
+      }
+
+      // ── Team badge dot (top-right of circle) — 'R' / 'B' ────────────────
+      const bx = player.x + 12, by = player.y - 12;
+      ctx.fillStyle = teamColor;
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3.5;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(player.x, player.y, 14, 0, Math.PI * 2);
+      ctx.arc(bx, by, 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-
-      // Text Initials (Player Name first letter)
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 11px Outfit, sans-serif';
+      ctx.font = '900 7px Outfit, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const role = getRoleFromIndex(matchState.players.indexOf(player) % 5);
-      ctx.fillText(player.name.substring(0, 2).toUpperCase(), player.x, player.y - 1);
-      
-      // Mini role tag above player
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 8px Outfit, sans-serif';
-      ctx.fillText(role, player.x, player.y + 8);
+      ctx.fillText(isRed ? 'R' : 'B', bx, by);
 
-      // Draw Stamina Bar underneath player circle
+      // ── Role tag (black pill below circle) ───────────────────────────────
       ctx.fillStyle = '#000000';
-      ctx.fillRect(player.x - 12, player.y + 19, 24, 5);
-      const staminaWidth = (player.currentStamina / 100) * 20;
-      ctx.fillStyle = player.currentStamina < 25 ? 'var(--fifa-red)' : 'var(--fifa-green)';
-      ctx.fillRect(player.x - 10, player.y + 20, staminaWidth, 3);
+      ctx.fillRect(player.x - 11, player.y + 18, 22, 11);
+      ctx.fillStyle = teamColor;
+      ctx.font = '900 7px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(role), player.x, player.y + 24);
+
+      // ── Stamina bar ───────────────────────────────────────────────────────
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(player.x - 14, player.y + 31, 28, 5);
+      const staminaWidth = (player.currentStamina / 100) * 26;
+      ctx.fillStyle = player.currentStamina < 25 ? '#FF0055' : '#00FF66';
+      ctx.fillRect(player.x - 13, player.y + 32, staminaWidth, 3);
     });
 
     // 3. Draw Ball
@@ -340,15 +395,15 @@ export default function PitchView({ squad, onBackToDashboard }: PitchViewProps) 
 
   }, [matchState]);
 
-  // Read trait custom colors
-  const getTraitColor = (trait: string) => {
+  // Hex trait colors — must be real hex values for Canvas 2D (CSS vars don't work there)
+  const getTraitColor = (trait: string): string => {
     switch (trait) {
-      case 'Arrogant': return 'var(--color-arrogant)';
-      case 'Calculative': return 'var(--neon-cyan)';
-      case 'Panic-Prone': return 'var(--color-panic)';
-      case 'Maverick': return 'var(--color-maverick)';
-      case 'Team-First': return 'var(--color-team)';
-      default: return '#ffffff';
+      case 'Arrogant':    return '#FF0055';
+      case 'Calculative': return '#00E1D9';
+      case 'Panic-Prone': return '#7D8899';
+      case 'Maverick':    return '#D500FF';
+      case 'Team-First':  return '#0066FF';
+      default:            return '#ffffff';
     }
   };
 

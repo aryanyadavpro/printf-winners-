@@ -12,6 +12,7 @@ import {
   checkNameTaken,
 } from '../utils/web3';
 import { Wallet, ShieldAlert, Cpu, Sparkles, Plus, Trash2, Trophy, Loader2, Tag } from 'lucide-react';
+import { getPlayerImage } from '../utils/playerImages';
 import { BrowserProvider } from 'ethers';
 
 interface DashboardProps {
@@ -398,18 +399,56 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                 gap: '15px',
                 boxShadow: `8px 8px 0px ${getTraitColor(generatedProfile.trait)}`
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h4 style={{ fontSize: '20px', fontWeight: 800 }}>{generatedProfile.name}</h4>
-                    <span style={{ 
-                      fontSize: '12px', 
-                      color: getTraitColor(generatedProfile.trait),
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px'
-                    }}>
-                      Trait: {generatedProfile.trait}
-                    </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    {(() => {
+                      const img = getPlayerImage(generatedProfile.name);
+                      return img ? (
+                        <img
+                          src={img}
+                          alt={generatedProfile.name}
+                          style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            objectPosition: 'top',
+                            border: `4px solid ${getTraitColor(generatedProfile.trait)}`,
+                            boxShadow: `4px 4px 0px #000000`,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '50%',
+                          backgroundColor: '#0f111a',
+                          border: `4px solid ${getTraitColor(generatedProfile.trait)}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '18px',
+                          fontWeight: 900,
+                          color: getTraitColor(generatedProfile.trait),
+                          flexShrink: 0,
+                        }}>
+                          {(generatedProfile.name as string).substring(0, 2).toUpperCase()}
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <h4 style={{ fontSize: '20px', fontWeight: 800 }}>{generatedProfile.name}</h4>
+                      <span style={{
+                        fontSize: '12px',
+                        color: getTraitColor(generatedProfile.trait),
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px'
+                      }}>
+                        Trait: {generatedProfile.trait}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -539,16 +578,45 @@ export default function Dashboard({ onStartMatch, onGoToShop }: DashboardProps) 
                     boxShadow: '4px 4px 0px #000000'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    {/* Trait circle representation */}
-                    <div style={{ 
-                      width: '24px', 
-                      height: '24px', 
-                      borderRadius: '50%', 
-                      backgroundColor: '#0f111a', 
-                      border: `3px solid ${getTraitColor(player.trait)}`,
-                      boxShadow: `0 0 8px ${getTraitColor(player.trait)}`
-                    }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Player photo or trait circle fallback */}
+                    {(() => {
+                      const img = getPlayerImage(player.name);
+                      return img ? (
+                        <img
+                          src={img}
+                          alt={player.name}
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            objectPosition: 'top',
+                            border: `3px solid ${getTraitColor(player.trait)}`,
+                            boxShadow: `0 0 10px ${getTraitColor(player.trait)}60`,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '50%',
+                          backgroundColor: '#0f111a',
+                          border: `3px solid ${getTraitColor(player.trait)}`,
+                          boxShadow: `0 0 10px ${getTraitColor(player.trait)}60`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 900,
+                          color: getTraitColor(player.trait),
+                          flexShrink: 0,
+                        }}>
+                          {player.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      );
+                    })()}
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{player.name}</div>
                       <div style={{ fontSize: '11px', color: '#555555', marginTop: '2px' }}>
