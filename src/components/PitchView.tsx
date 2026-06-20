@@ -7,6 +7,7 @@ import { runMatchTick, resetToKickoff, AgentDecisionContext } from '../utils/mat
 import { FIELD_WIDTH, FIELD_HEIGHT, PITCH_MARGIN, GOAL_Y_TOP, GOAL_Y_BOTTOM } from '../utils/physics';
 import { updatePlayerStatsOnChain } from '../utils/web3';
 import MangaOverlay from './MangaOverlay';
+import ThreePitchRenderer from './ThreePitchRenderer';
 
 interface PitchViewProps {
   squad: Player[];
@@ -544,25 +545,31 @@ export default function PitchView({ squad, myAddress, opponentAddress, onBackToD
         </div>
       )}
 
-      {/* Simulator canvas and shake wrapper */}
-      <div 
+      {/* 3D Pitch wrapper */}
+      <div
         className={mangaEvent?.type === 'clutch_shot' ? 'screen-shake' : ''}
-        style={{ 
-          position: 'relative', 
-          borderRadius: '16px', 
-          overflow: 'hidden', 
+        style={{
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
           border: '3px solid #1f253d',
           boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-          backgroundColor: '#06080e',
-          aspectRatio: `${FIELD_WIDTH} / ${FIELD_HEIGHT}`
+          aspectRatio: `${FIELD_WIDTH} / ${FIELD_HEIGHT}`,
         }}
       >
-        <canvas 
-          ref={canvasRef} 
-          width={FIELD_WIDTH} 
-          height={FIELD_HEIGHT} 
-          style={{ width: '100%', height: '100%', display: 'block' }}
-        />
+        {/* Hidden canvas still needed for legacy useEffect compat — zero size */}
+        <canvas ref={canvasRef} width={0} height={0} style={{ display: 'none' }} />
+
+        {/* Three.js 3D renderer */}
+        {matchState && (
+          <ThreePitchRenderer
+            players={matchState.players}
+            ball={matchState.ball}
+            imageCache={imageCache.current}
+            scoreRed={matchState.scoreRed}
+            scoreBlue={matchState.scoreBlue}
+          />
+        )}
 
         {/* In-Game Floating Speech Bubble */}
         {mangaEvent && (() => {
